@@ -1,0 +1,30 @@
+# .NET build output
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+
+# Local app data
+*.db
+*.db-shm
+*.db-wal
+
+# VS / IDE files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Test results
+TestResults/
+coverage/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

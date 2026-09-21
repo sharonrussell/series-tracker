@@ -1,0 +1,129 @@
+﻿@page
+@model Series_Tracker.Pages.IndexModel
+@{
+    ViewData["Title"] = "Series Tracker";
+}
+
+<div class="page-shell">
+    <header class="page-header">
+        <div>
+            <p class="eyebrow">Reading list</p>
+            <h1>Your series tracker</h1>
+        </div>
+
+        <form method="get" class="filter-form">
+            <label for="statusFilter">Filter</label>
+            <select id="statusFilter" name="StatusFilter" onchange="this.form.submit()">
+                <option value="All" selected="@(Model.StatusFilter == "All")">All</option>
+                @foreach (var status in Model.StatusOptions)
+                {
+                    <option value="@status" selected="@(Model.StatusFilter == status)">@status</option>
+                }
+            </select>
+        </form>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(Model.Message))
+    {
+        <div class="alert alert-warning">@Model.Message</div>
+    }
+
+    <section class="card add-series-card">
+        <h2>Add a new series</h2>
+
+        <form method="post" asp-page-handler="Add" class="series-form">
+            <div class="field-group">
+                <label asp-for="Form.Title">Title</label>
+                <input asp-for="Form.Title" />
+            </div>
+
+            <div class="field-group">
+                <label asp-for="Form.TotalProgress">Total progress</label>
+                <input asp-for="Form.TotalProgress" type="number" min="1" />
+            </div>
+
+            <div class="field-group">
+                <label asp-for="Form.CurrentProgress">Current progress</label>
+                <input asp-for="Form.CurrentProgress" type="number" min="0" />
+            </div>
+
+            <div class="field-group">
+                <label asp-for="Form.Status">Status</label>
+                <select asp-for="Form.Status" asp-items="Html.GetEnumSelectList<Series_Tracker.Models.SeriesStatus>()"></select>
+            </div>
+
+            <div class="field-group wide">
+                <label asp-for="Form.Notes">Notes</label>
+                <textarea asp-for="Form.Notes" rows="3"></textarea>
+            </div>
+
+            <button type="submit" class="primary-button">Add series</button>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>Current list</h2>
+
+        @if (!Model.SeriesItems.Any())
+        {
+            <p class="empty-state">No series match the current filter.</p>
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Status</th>
+                            <th>Progress</th>
+                            <th>Completion</th>
+                            <th>Notes</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.SeriesItems)
+                        {
+                            <tr>
+                                <td>@item.Title</td>
+                                <td><span class="status-pill status-@item.Status.ToString().ToLower()">@item.Status</span></td>
+                                <td>@item.CurrentProgress / @item.TotalProgress</td>
+                                <td>@item.GetProgressPercent()%</td>
+                                <td>@(string.IsNullOrWhiteSpace(item.Notes) ? "-" : item.Notes)</td>
+                                <td>
+                                    <div class="action-row">
+                                        <a asp-page="/Series/Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline">Edit</a>
+
+                                        <form method="post" asp-page-handler="Update">
+                                            <input type="hidden" name="id" value="@item.Id" />
+                                            <input type="hidden" name="incrementBy" value="1" />
+                                            <button type="submit" class="btn btn-sm btn-primary">+1</button>
+                                        </form>
+
+                                        <form method="post" asp-page-handler="Update">
+                                            <input type="hidden" name="id" value="@item.Id" />
+                                            <input type="hidden" name="status" value="Completed" />
+                                            <button type="submit" class="btn btn-sm btn-success">Complete</button>
+                                        </form>
+
+                                        <form method="post" asp-page-handler="Update">
+                                            <input type="hidden" name="id" value="@item.Id" />
+                                            <input type="hidden" name="status" value="Dropped" />
+                                            <button type="submit" class="btn btn-sm btn-warning">Drop</button>
+                                        </form>
+
+                                        <form method="post" asp-page-handler="Archive">
+                                            <input type="hidden" name="id" value="@item.Id" />
+                                            <button type="submit" class="btn btn-sm btn-secondary">Archive</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</div>
