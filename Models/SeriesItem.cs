@@ -21,8 +21,6 @@ public class SeriesItem
 
     public string Author { get; set; } = string.Empty;
 
-    public string? Notes { get; set; }
-
     public int CurrentProgress { get; set; }
 
     public int TotalProgress { get; set; }

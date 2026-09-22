@@ -24,9 +24,6 @@ public class SeriesTrackerDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(200);
 
-            entity.Property(e => e.Notes)
-                .HasMaxLength(1000);
-
             entity.Property(e => e.Status)
                 .HasConversion<string>();
 

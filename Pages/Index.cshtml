@@ -88,8 +88,7 @@
                             <th>Series state</th>
                             <th>Series length</th>
                             <th>Books read</th>
-                            <th>Completion</th>
-                            <th>Notes</th>
+                            <th>Progress</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -104,21 +103,26 @@
                                 <td>@item.TotalProgress</td>
                                 <td>@item.CurrentProgress</td>
                                 <td>@item.GetProgressPercent()%</td>
-                                <td>@(string.IsNullOrWhiteSpace(item.Notes) ? "-" : item.Notes)</td>
                                 <td>
                                     <div class="action-row">
-                                        <a asp-page="/Series/Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline">Edit</a>
+                                        <a asp-page="/Series/Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline action-symbol-button" aria-label="Edit series" title="Edit series">✎</a>
 
                                         <form method="post" asp-page-handler="Update">
                                             <input type="hidden" name="id" value="@item.Id" />
                                             <input type="hidden" name="incrementBy" value="1" />
-                                            <button type="submit" class="btn btn-sm btn-primary">+1</button>
+                                            <button type="submit" class="btn btn-sm btn-primary action-symbol-button" aria-label="Add one book read" title="Add one book read">+1</button>
+                                        </form>
+
+                                        <form method="post" asp-page-handler="Update">
+                                            <input type="hidden" name="id" value="@item.Id" />
+                                            <input type="hidden" name="status" value="Completed" />
+                                            <button type="submit" class="btn btn-sm btn-success action-symbol-button" aria-label="Mark series completed" title="Mark series completed">✓</button>
                                         </form>
 
                                         <form method="post" asp-page-handler="Update">
                                             <input type="hidden" name="id" value="@item.Id" />
                                             <input type="hidden" name="status" value="Dropped" />
-                                            <button type="submit" class="btn btn-sm btn-warning">Drop</button>
+                                            <button type="submit" class="btn btn-sm btn-warning action-symbol-button" aria-label="Drop series" title="Drop series">🗑</button>
                                         </form>
                                     </div>
                                 </td>

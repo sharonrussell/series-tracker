@@ -30,7 +30,6 @@ public class EditModel : PageModel
             Id = series.Id,
             Title = series.Title,
             Author = series.Author,
-            Notes = series.Notes,
             CurrentProgress = series.CurrentProgress,
             TotalProgress = series.TotalProgress,
             Status = series.Status,
@@ -68,7 +67,6 @@ public class EditModel : PageModel
 
         series.Title = Form.Title.Trim();
         series.Author = Form.Author.Trim();
-        series.Notes = string.IsNullOrWhiteSpace(Form.Notes) ? null : Form.Notes.Trim();
         series.TotalProgress = Math.Max(1, Form.TotalProgress);
         series.CurrentProgress = Math.Clamp(Form.CurrentProgress, 0, series.TotalProgress);
         series.Status = Form.Status;
@@ -96,8 +94,6 @@ public class EditModel : PageModel
         public string Title { get; set; } = string.Empty;
 
         public string Author { get; set; } = string.Empty;
-
-        public string? Notes { get; set; }
 
         public int CurrentProgress { get; set; }
 

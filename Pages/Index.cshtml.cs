@@ -80,7 +80,6 @@ public class IndexModel : PageModel
         {
             Title = Form.Title.Trim(),
             Author = Form.Author.Trim(),
-            Notes = string.IsNullOrWhiteSpace(Form.Notes) ? null : Form.Notes.Trim(),
             Status = Form.Status,
             CompletionState = Form.CompletionState,
             TotalProgress = Math.Max(1, Form.TotalProgress),
@@ -159,8 +158,6 @@ public class IndexModel : PageModel
         public string Title { get; set; } = string.Empty;
 
         public string Author { get; set; } = string.Empty;
-
-        public string? Notes { get; set; }
 
         public int CurrentProgress { get; set; }
 

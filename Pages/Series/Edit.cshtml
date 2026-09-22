@@ -46,11 +46,6 @@
                 <select asp-for="Form.CompletionState" asp-items="Html.GetEnumSelectList<Series_Tracker.Models.SeriesCompletionState>()"></select>
             </div>
 
-            <div class="field-group wide">
-                <label asp-for="Form.Notes">Notes</label>
-                <textarea asp-for="Form.Notes" rows="3"></textarea>
-            </div>
-
             <div class="field-group wide action-row">
                 <button type="submit" class="primary-button">Save changes</button>
                 <a asp-page="/Index" class="btn btn-outline">Cancel</a>
