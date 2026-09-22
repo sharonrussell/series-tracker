@@ -2,10 +2,9 @@ namespace Series_Tracker.Models;
 
 public enum SeriesStatus
 {
-    Active = 0,
+    Reading = 0,
     Completed = 1,
-    Dropped = 2,
-    Archived = 3
+    Dropped = 2
 }
 
 public enum SeriesCompletionState
@@ -28,15 +27,13 @@ public class SeriesItem
 
     public int TotalProgress { get; set; }
 
-    public SeriesStatus Status { get; set; } = SeriesStatus.Active;
+    public SeriesStatus Status { get; set; } = SeriesStatus.Reading;
 
     public SeriesCompletionState CompletionState { get; set; } = SeriesCompletionState.Ongoing;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-
-    public bool IsArchived => Status == SeriesStatus.Archived;
 
     public int GetProgressPercent()
     {

@@ -78,7 +78,7 @@ public class EditModel : PageModel
             series.CurrentProgress = series.TotalProgress;
         }
 
-        if (series.CurrentProgress == series.TotalProgress)
+        if (series.CompletionState == SeriesCompletionState.Completed && series.CurrentProgress == series.TotalProgress)
         {
             series.Status = SeriesStatus.Completed;
         }
@@ -95,7 +95,7 @@ public class EditModel : PageModel
 
         public string Title { get; set; } = string.Empty;
 
-    public string Author { get; set; } = string.Empty;
+        public string Author { get; set; } = string.Empty;
 
         public string? Notes { get; set; }
 
@@ -103,7 +103,7 @@ public class EditModel : PageModel
 
         public int TotalProgress { get; set; } = 1;
 
-        public SeriesStatus Status { get; set; } = SeriesStatus.Active;
+        public SeriesStatus Status { get; set; } = SeriesStatus.Reading;
 
         public SeriesCompletionState CompletionState { get; set; } = SeriesCompletionState.Ongoing;
     }

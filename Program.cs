@@ -60,4 +60,7 @@ static async Task EnsureSeriesMetadataColumnsAsync(SeriesTrackerDbContext dbCont
     {
         await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE \"Series\" ADD COLUMN \"CompletionState\" TEXT NOT NULL DEFAULT 'Ongoing';");
     }
+
+    await dbContext.Database.ExecuteSqlRawAsync("UPDATE \"Series\" SET \"Status\" = 'Reading' WHERE \"Status\" IN ('Active', 'Ongoing');");
+    await dbContext.Database.ExecuteSqlRawAsync("UPDATE \"Series\" SET \"Status\" = 'Dropped' WHERE \"Status\" = 'Archived';");
 }

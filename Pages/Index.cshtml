@@ -117,19 +117,8 @@
 
                                         <form method="post" asp-page-handler="Update">
                                             <input type="hidden" name="id" value="@item.Id" />
-                                            <input type="hidden" name="status" value="Completed" />
-                                            <button type="submit" class="btn btn-sm btn-success">Complete</button>
-                                        </form>
-
-                                        <form method="post" asp-page-handler="Update">
-                                            <input type="hidden" name="id" value="@item.Id" />
                                             <input type="hidden" name="status" value="Dropped" />
                                             <button type="submit" class="btn btn-sm btn-warning">Drop</button>
-                                        </form>
-
-                                        <form method="post" asp-page-handler="Archive">
-                                            <input type="hidden" name="id" value="@item.Id" />
-                                            <button type="submit" class="btn btn-sm btn-secondary">Archive</button>
                                         </form>
                                     </div>
                                 </td>

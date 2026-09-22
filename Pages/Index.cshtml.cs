@@ -94,7 +94,7 @@ public class IndexModel : PageModel
             series.CurrentProgress = series.TotalProgress;
         }
 
-        if (series.CurrentProgress == series.TotalProgress)
+        if (series.CompletionState == SeriesCompletionState.Completed && series.CurrentProgress == series.TotalProgress)
         {
             series.Status = SeriesStatus.Completed;
         }
@@ -128,26 +128,13 @@ public class IndexModel : PageModel
             }
         }
 
-        if (series.TotalProgress > 0 && series.CurrentProgress == series.TotalProgress)
+        if (series.CompletionState == SeriesCompletionState.Completed &&
+            series.TotalProgress > 0 &&
+            series.CurrentProgress == series.TotalProgress)
         {
             series.Status = SeriesStatus.Completed;
         }
 
-        series.UpdatedAt = DateTime.UtcNow;
-        await _dbContext.SaveChangesAsync();
-
-        return RedirectToPage(new { StatusFilter });
-    }
-
-    public async Task<IActionResult> OnPostArchiveAsync(int id)
-    {
-        var series = await _dbContext.Series.FindAsync(id);
-        if (series is null)
-        {
-            return NotFound();
-        }
-
-        series.Status = SeriesStatus.Archived;
         series.UpdatedAt = DateTime.UtcNow;
         await _dbContext.SaveChangesAsync();
 
@@ -179,7 +166,7 @@ public class IndexModel : PageModel
 
         public int TotalProgress { get; set; } = 1;
 
-        public SeriesStatus Status { get; set; } = SeriesStatus.Active;
+        public SeriesStatus Status { get; set; } = SeriesStatus.Reading;
 
         public SeriesCompletionState CompletionState { get; set; } = SeriesCompletionState.Ongoing;
     }
