@@ -22,6 +22,11 @@
             </div>
 
             <div class="field-group">
+                <label asp-for="Form.Author">Author</label>
+                <input asp-for="Form.Author" />
+            </div>
+
+            <div class="field-group">
                 <label asp-for="Form.TotalProgress">Total progress</label>
                 <input asp-for="Form.TotalProgress" type="number" min="1" />
             </div>
@@ -34,6 +39,11 @@
             <div class="field-group">
                 <label asp-for="Form.Status">Status</label>
                 <select asp-for="Form.Status" asp-items="Html.GetEnumSelectList<Series_Tracker.Models.SeriesStatus>()"></select>
+            </div>
+
+            <div class="field-group">
+                <label asp-for="Form.CompletionState">Series state</label>
+                <select asp-for="Form.CompletionState" asp-items="Html.GetEnumSelectList<Series_Tracker.Models.SeriesCompletionState>()"></select>
             </div>
 
             <div class="field-group wide">

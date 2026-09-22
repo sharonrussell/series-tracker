@@ -24,7 +24,9 @@
                     <thead>
                         <tr>
                             <th>Title</th>
+                            <th>Author</th>
                             <th>Status</th>
+                            <th>Series state</th>
                             <th>Progress</th>
                             <th>Notes</th>
                             <th>Actions</th>
@@ -35,7 +37,9 @@
                         {
                             <tr>
                                 <td>@item.Title</td>
+                                <td>@item.Author</td>
                                 <td><span class="status-pill status-archived">@item.Status</span></td>
+                                <td><span class="completion-pill completion-@item.CompletionState.ToString().ToLower()">@item.CompletionState</span></td>
                                 <td>@item.CurrentProgress / @item.TotalProgress</td>
                                 <td>@(string.IsNullOrWhiteSpace(item.Notes) ? "-" : item.Notes)</td>
                                 <td>

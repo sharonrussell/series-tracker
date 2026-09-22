@@ -20,10 +20,17 @@ public class SeriesTrackerDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(200);
 
+            entity.Property(e => e.Author)
+                .IsRequired()
+                .HasMaxLength(200);
+
             entity.Property(e => e.Notes)
                 .HasMaxLength(1000);
 
             entity.Property(e => e.Status)
+                .HasConversion<string>();
+
+            entity.Property(e => e.CompletionState)
                 .HasConversion<string>();
         });
     }

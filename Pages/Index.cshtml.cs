@@ -35,11 +35,21 @@ public class IndexModel : PageModel
         await LoadSeriesAsync();
     }
 
-    public static string? ValidateSeriesDraft(string title, int totalProgress, int currentProgress)
+    public static string? ValidateSeriesDraft(string title, string author, int totalProgress, int currentProgress, SeriesCompletionState completionState)
     {
         if (string.IsNullOrWhiteSpace(title))
         {
             return "Series title is required.";
+        }
+
+        if (string.IsNullOrWhiteSpace(author))
+        {
+            return "Author is required.";
+        }
+
+        if (!Enum.IsDefined(completionState))
+        {
+            return "Series completion state must be ongoing or completed.";
         }
 
         if (totalProgress < 1)
@@ -57,7 +67,7 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostAddAsync()
     {
-        var validationMessage = ValidateSeriesDraft(Form.Title, Form.TotalProgress, Form.CurrentProgress);
+        var validationMessage = ValidateSeriesDraft(Form.Title, Form.Author, Form.TotalProgress, Form.CurrentProgress, Form.CompletionState);
         if (!string.IsNullOrWhiteSpace(validationMessage))
         {
             Message = validationMessage;
@@ -69,8 +79,10 @@ public class IndexModel : PageModel
         var series = new SeriesItem
         {
             Title = Form.Title.Trim(),
+            Author = Form.Author.Trim(),
             Notes = string.IsNullOrWhiteSpace(Form.Notes) ? null : Form.Notes.Trim(),
             Status = Form.Status,
+            CompletionState = Form.CompletionState,
             TotalProgress = Math.Max(1, Form.TotalProgress),
             CurrentProgress = Math.Clamp(Form.CurrentProgress, 0, Math.Max(1, Form.TotalProgress)),
             CreatedAt = DateTime.UtcNow,
@@ -149,6 +161,8 @@ public class IndexModel : PageModel
     {
         public string Title { get; set; } = string.Empty;
 
+        public string Author { get; set; } = string.Empty;
+
         public string? Notes { get; set; }
 
         public int CurrentProgress { get; set; }
@@ -156,5 +170,7 @@ public class IndexModel : PageModel
         public int TotalProgress { get; set; } = 1;
 
         public SeriesStatus Status { get; set; } = SeriesStatus.Active;
+
+        public SeriesCompletionState CompletionState { get; set; } = SeriesCompletionState.Ongoing;
     }
 }

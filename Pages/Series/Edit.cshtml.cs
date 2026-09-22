@@ -29,10 +29,12 @@ public class EditModel : PageModel
         {
             Id = series.Id,
             Title = series.Title,
+            Author = series.Author,
             Notes = series.Notes,
             CurrentProgress = series.CurrentProgress,
             TotalProgress = series.TotalProgress,
-            Status = series.Status
+            Status = series.Status,
+            CompletionState = series.CompletionState
         };
 
         return Page();
@@ -46,6 +48,18 @@ public class EditModel : PageModel
             return Page();
         }
 
+        if (string.IsNullOrWhiteSpace(Form.Author))
+        {
+            ModelState.AddModelError(nameof(Form.Author), "Author is required.");
+            return Page();
+        }
+
+        if (!Enum.IsDefined(Form.CompletionState))
+        {
+            ModelState.AddModelError(nameof(Form.CompletionState), "Series completion state must be ongoing or completed.");
+            return Page();
+        }
+
         var series = await _dbContext.Series.FindAsync(Form.Id);
         if (series is null)
         {
@@ -53,10 +67,12 @@ public class EditModel : PageModel
         }
 
         series.Title = Form.Title.Trim();
+        series.Author = Form.Author.Trim();
         series.Notes = string.IsNullOrWhiteSpace(Form.Notes) ? null : Form.Notes.Trim();
         series.TotalProgress = Math.Max(1, Form.TotalProgress);
         series.CurrentProgress = Math.Clamp(Form.CurrentProgress, 0, series.TotalProgress);
         series.Status = Form.Status;
+        series.CompletionState = Form.CompletionState;
         if (series.Status == SeriesStatus.Completed)
         {
             series.CurrentProgress = series.TotalProgress;
@@ -74,6 +90,8 @@ public class EditModel : PageModel
 
         public string Title { get; set; } = string.Empty;
 
+    public string Author { get; set; } = string.Empty;
+
         public string? Notes { get; set; }
 
         public int CurrentProgress { get; set; }
@@ -81,5 +99,7 @@ public class EditModel : PageModel
         public int TotalProgress { get; set; } = 1;
 
         public SeriesStatus Status { get; set; } = SeriesStatus.Active;
+
+        public SeriesCompletionState CompletionState { get; set; } = SeriesCompletionState.Ongoing;
     }
 }
