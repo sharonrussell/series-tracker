@@ -37,21 +37,41 @@ public class SeriesItem
 
     public int GetProgressPercent()
     {
-        if (CurrentReleasedCount <= 0)
+        if (TotalProgress <= 0)
         {
             return 0;
         }
 
-        return (int)Math.Round((double)CurrentProgress / CurrentReleasedCount * 100);
+        return (int)Math.Round((double)CurrentProgress / TotalProgress * 100);
     }
 
     public string GetProgressFraction()
     {
-        if (CurrentReleasedCount <= 0)
+        if (TotalProgress <= 0)
         {
             return "0/0";
         }
 
-        return $"{CurrentProgress}/{CurrentReleasedCount}";
+        return $"{CurrentProgress}/{TotalProgress}";
+    }
+
+    public int GetAvailableToReadCount()
+    {
+        return Math.Max(0, CurrentReleasedCount - CurrentProgress);
+    }
+
+    public bool IsUpToDate()
+    {
+        return GetAvailableToReadCount() == 0 && CurrentReleasedCount < TotalProgress;
+    }
+
+    public bool IsProgressComplete()
+    {
+        return TotalProgress > 0 && CurrentProgress >= TotalProgress;
+    }
+
+    public SeriesCompletionState GetDisplayCompletionState()
+    {
+        return IsProgressComplete() ? SeriesCompletionState.Completed : CompletionState;
     }
 }

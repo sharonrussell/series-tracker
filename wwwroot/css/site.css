@@ -286,6 +286,13 @@ th {
 .completion-ongoing { background: #e0f2fe; color: #075985; }
 .completion-completed { background: #dcfce7; color: #166534; }
 
+.progress-note {
+  display: block;
+  margin-top: 0.25rem;
+  color: #8a5a00;
+  font-size: 0.74rem;
+}
+
 .action-row {
   display: flex;
   flex-wrap: wrap;

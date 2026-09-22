@@ -20,33 +20,73 @@ public class SeriesTrackerTests
     }
 
     [Fact]
-    public void GetProgressPercent_ReturnsExpectedPercentage()
+    public void GetProgressPercent_UsesSeriesLengthAsDenominator()
     {
         var series = new SeriesItem { CurrentProgress = 7, CurrentReleasedCount = 10, TotalProgress = 20 };
 
         var result = series.GetProgressPercent();
 
-        Assert.Equal(70, result);
+        Assert.Equal(35, result);
     }
 
     [Fact]
-    public void GetProgressPercent_UsesReleasedCountAsDenominator()
+    public void GetProgressPercent_DoesNotTreatAllReleasedBooksAsComplete()
     {
         var series = new SeriesItem { CurrentProgress = 5, CurrentReleasedCount = 5, TotalProgress = 10 };
 
         var result = series.GetProgressPercent();
 
-        Assert.Equal(100, result);
+        Assert.Equal(50, result);
     }
 
     [Fact]
-    public void GetProgressFraction_ReturnsCurrentOverReleasedCount()
+    public void GetProgressFraction_ReturnsCurrentOverSeriesLength()
     {
         var series = new SeriesItem { CurrentProgress = 7, CurrentReleasedCount = 10, TotalProgress = 20 };
 
         var result = series.GetProgressFraction();
 
-        Assert.Equal("7/10", result);
+        Assert.Equal("7/20", result);
+    }
+
+    [Fact]
+    public void GetAvailableToReadCount_ReturnsReleasedBooksNotRead()
+    {
+        var series = new SeriesItem { CurrentProgress = 3, CurrentReleasedCount = 10, TotalProgress = 20 };
+
+        var result = series.GetAvailableToReadCount();
+
+        Assert.Equal(7, result);
+    }
+
+    [Fact]
+    public void GetAvailableToReadCount_NeverReturnsNegative()
+    {
+        var series = new SeriesItem { CurrentProgress = 12, CurrentReleasedCount = 12, TotalProgress = 20 };
+
+        var result = series.GetAvailableToReadCount();
+
+        Assert.Equal(0, result);
+    }
+
+    [Fact]
+    public void IsUpToDate_ReturnsTrue_WhenAllReleasedBooksAreReadButSeriesContinues()
+    {
+        var series = new SeriesItem { CurrentProgress = 10, CurrentReleasedCount = 10, TotalProgress = 20 };
+
+        var result = series.IsUpToDate();
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void GetDisplayCompletionState_ReturnsCompleted_WhenProgressIsFull()
+    {
+        var series = new SeriesItem { CurrentProgress = 20, CurrentReleasedCount = 20, TotalProgress = 20, CompletionState = SeriesCompletionState.Ongoing };
+
+        var result = series.GetDisplayCompletionState();
+
+        Assert.Equal(SeriesCompletionState.Completed, result);
     }
 
     [Fact]
