@@ -23,6 +23,8 @@ public class SeriesItem
 
     public int CurrentProgress { get; set; }
 
+    public int CurrentReleasedCount { get; set; }
+
     public int TotalProgress { get; set; }
 
     public SeriesStatus Status { get; set; } = SeriesStatus.Reading;
@@ -35,11 +37,11 @@ public class SeriesItem
 
     public int GetProgressPercent()
     {
-        if (TotalProgress <= 0)
+        if (CurrentReleasedCount <= 0)
         {
             return 0;
         }
 
-        return (int)Math.Round((double)CurrentProgress / TotalProgress * 100);
+        return (int)Math.Round((double)CurrentProgress / CurrentReleasedCount * 100);
     }
 }

@@ -31,6 +31,7 @@ public class EditModel : PageModel
             Title = series.Title,
             Author = series.Author,
             CurrentProgress = series.CurrentProgress,
+            CurrentReleasedCount = series.CurrentReleasedCount,
             TotalProgress = series.TotalProgress,
             Status = series.Status,
             CompletionState = series.CompletionState
@@ -59,6 +60,24 @@ public class EditModel : PageModel
             return Page();
         }
 
+        if (Form.TotalProgress < 1)
+        {
+            ModelState.AddModelError(nameof(Form.TotalProgress), "Series length must be at least 1.");
+            return Page();
+        }
+
+        if (Form.CurrentReleasedCount < 0 || Form.CurrentReleasedCount > Form.TotalProgress)
+        {
+            ModelState.AddModelError(nameof(Form.CurrentReleasedCount), "Released so far must be between 0 and the series length.");
+            return Page();
+        }
+
+        if (Form.CurrentProgress < 0 || Form.CurrentProgress > Form.CurrentReleasedCount)
+        {
+            ModelState.AddModelError(nameof(Form.CurrentProgress), "Current progress must be between 0 and the released count.");
+            return Page();
+        }
+
         var series = await _dbContext.Series.FindAsync(Form.Id);
         if (series is null)
         {
@@ -68,11 +87,13 @@ public class EditModel : PageModel
         series.Title = Form.Title.Trim();
         series.Author = Form.Author.Trim();
         series.TotalProgress = Math.Max(1, Form.TotalProgress);
-        series.CurrentProgress = Math.Clamp(Form.CurrentProgress, 0, series.TotalProgress);
+        series.CurrentReleasedCount = Math.Clamp(Form.CurrentReleasedCount, 0, series.TotalProgress);
+        series.CurrentProgress = Math.Clamp(Form.CurrentProgress, 0, series.CurrentReleasedCount);
         series.Status = Form.Status;
         series.CompletionState = Form.CompletionState;
         if (series.Status == SeriesStatus.Completed)
         {
+            series.CurrentReleasedCount = series.TotalProgress;
             series.CurrentProgress = series.TotalProgress;
         }
 
@@ -96,6 +117,8 @@ public class EditModel : PageModel
         public string Author { get; set; } = string.Empty;
 
         public int CurrentProgress { get; set; }
+
+        public int CurrentReleasedCount { get; set; }
 
         public int TotalProgress { get; set; } = 1;
 

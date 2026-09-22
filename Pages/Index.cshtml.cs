@@ -35,7 +35,7 @@ public class IndexModel : PageModel
         await LoadSeriesAsync();
     }
 
-    public static string? ValidateSeriesDraft(string title, string author, int totalProgress, int currentProgress, SeriesCompletionState completionState)
+    public static string? ValidateSeriesDraft(string title, string author, int totalProgress, int currentReleasedCount, int currentProgress, SeriesCompletionState completionState)
     {
         if (string.IsNullOrWhiteSpace(title))
         {
@@ -57,9 +57,14 @@ public class IndexModel : PageModel
             return "Series length must be at least 1.";
         }
 
-        if (currentProgress < 0 || currentProgress > totalProgress)
+        if (currentReleasedCount < 0 || currentReleasedCount > totalProgress)
         {
-            return "Books read so far must be between 0 and the series length.";
+            return "Released so far must be between 0 and the series length.";
+        }
+
+        if (currentProgress < 0 || currentProgress > currentReleasedCount)
+        {
+            return "Books read so far must be between 0 and the released count.";
         }
 
         return null;
@@ -67,7 +72,7 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostAddAsync()
     {
-        var validationMessage = ValidateSeriesDraft(Form.Title, Form.Author, Form.TotalProgress, Form.CurrentProgress, Form.CompletionState);
+        var validationMessage = ValidateSeriesDraft(Form.Title, Form.Author, Form.TotalProgress, Form.CurrentReleasedCount, Form.CurrentProgress, Form.CompletionState);
         if (!string.IsNullOrWhiteSpace(validationMessage))
         {
             Message = validationMessage;
@@ -83,13 +88,15 @@ public class IndexModel : PageModel
             Status = Form.Status,
             CompletionState = Form.CompletionState,
             TotalProgress = Math.Max(1, Form.TotalProgress),
-            CurrentProgress = Math.Clamp(Form.CurrentProgress, 0, Math.Max(1, Form.TotalProgress)),
+            CurrentReleasedCount = Math.Clamp(Form.CurrentReleasedCount, 0, Math.Max(1, Form.TotalProgress)),
+            CurrentProgress = Math.Clamp(Form.CurrentProgress, 0, Math.Clamp(Form.CurrentReleasedCount, 0, Math.Max(1, Form.TotalProgress))),
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
 
         if (series.Status == SeriesStatus.Completed)
         {
+            series.CurrentReleasedCount = series.TotalProgress;
             series.CurrentProgress = series.TotalProgress;
         }
 
@@ -114,7 +121,7 @@ public class IndexModel : PageModel
 
         if (incrementBy > 0)
         {
-            series.CurrentProgress = Math.Min(series.TotalProgress, series.CurrentProgress + incrementBy);
+            series.CurrentProgress = Math.Min(series.CurrentReleasedCount, series.CurrentProgress + incrementBy);
         }
 
         if (status.HasValue)
@@ -123,6 +130,7 @@ public class IndexModel : PageModel
 
             if (status.Value == SeriesStatus.Completed && series.TotalProgress > 0)
             {
+                series.CurrentReleasedCount = series.TotalProgress;
                 series.CurrentProgress = series.TotalProgress;
             }
         }
@@ -160,6 +168,8 @@ public class IndexModel : PageModel
         public string Author { get; set; } = string.Empty;
 
         public int CurrentProgress { get; set; }
+
+        public int CurrentReleasedCount { get; set; }
 
         public int TotalProgress { get; set; } = 1;
 

@@ -61,6 +61,15 @@ static async Task EnsureSeriesMetadataColumnsAsync(SeriesTrackerDbContext dbCont
         await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE \"Series\" ADD COLUMN \"CompletionState\" TEXT NOT NULL DEFAULT 'Ongoing';");
     }
 
+    if (!columns.Contains("CurrentReleasedCount"))
+    {
+        await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE \"Series\" ADD COLUMN \"CurrentReleasedCount\" INTEGER NOT NULL DEFAULT 0;");
+    }
+
     await dbContext.Database.ExecuteSqlRawAsync("UPDATE \"Series\" SET \"Status\" = 'Reading' WHERE \"Status\" IN ('Active', 'Ongoing');");
     await dbContext.Database.ExecuteSqlRawAsync("UPDATE \"Series\" SET \"Status\" = 'Dropped' WHERE \"Status\" = 'Archived';");
+    await dbContext.Database.ExecuteSqlRawAsync("UPDATE \"Series\" SET \"CurrentReleasedCount\" = \"TotalProgress\" WHERE \"CompletionState\" = 'Completed' AND \"CurrentReleasedCount\" < \"TotalProgress\";");
+    await dbContext.Database.ExecuteSqlRawAsync("UPDATE \"Series\" SET \"CurrentReleasedCount\" = \"CurrentProgress\" WHERE \"CurrentReleasedCount\" < \"CurrentProgress\";");
+    await dbContext.Database.ExecuteSqlRawAsync("UPDATE \"Series\" SET \"CurrentReleasedCount\" = \"TotalProgress\" WHERE \"CurrentReleasedCount\" > \"TotalProgress\";");
+    await dbContext.Database.ExecuteSqlRawAsync("UPDATE \"Series\" SET \"CurrentProgress\" = \"CurrentReleasedCount\" WHERE \"CurrentProgress\" > \"CurrentReleasedCount\";");
 }

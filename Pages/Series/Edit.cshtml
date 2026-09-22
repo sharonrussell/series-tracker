@@ -27,12 +27,17 @@
             </div>
 
             <div class="field-group">
-                <label asp-for="Form.TotalProgress">Total progress</label>
+                <label asp-for="Form.TotalProgress">Series length</label>
                 <input asp-for="Form.TotalProgress" type="number" min="1" />
             </div>
 
             <div class="field-group">
-                <label asp-for="Form.CurrentProgress">Current progress</label>
+                <label asp-for="Form.CurrentReleasedCount">Released so far</label>
+                <input asp-for="Form.CurrentReleasedCount" type="number" min="0" />
+            </div>
+
+            <div class="field-group">
+                <label asp-for="Form.CurrentProgress">Books read</label>
                 <input asp-for="Form.CurrentProgress" type="number" min="0" />
             </div>
 

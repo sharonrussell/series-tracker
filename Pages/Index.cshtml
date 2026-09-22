@@ -61,6 +61,10 @@
                         <input asp-for="Form.TotalProgress" type="number" min="1" placeholder="Length" />
                     </div>
                     <div class="inline-cell">
+                        <label asp-for="Form.CurrentReleasedCount">Released so far</label>
+                        <input asp-for="Form.CurrentReleasedCount" type="number" min="0" placeholder="Released" />
+                    </div>
+                    <div class="inline-cell">
                         <label asp-for="Form.CurrentProgress">Books read</label>
                         <input asp-for="Form.CurrentProgress" type="number" min="0" placeholder="Read so far" />
                     </div>
@@ -87,6 +91,7 @@
                             <th>Status</th>
                             <th>Series state</th>
                             <th>Series length</th>
+                            <th>Released so far</th>
                             <th>Books read</th>
                             <th>Progress</th>
                             <th>Actions</th>
@@ -101,6 +106,7 @@
                                 <td><span class="status-pill status-@item.Status.ToString().ToLower()">@item.Status</span></td>
                                 <td><span class="completion-pill completion-@item.CompletionState.ToString().ToLower()">@item.CompletionState</span></td>
                                 <td>@item.TotalProgress</td>
+                                <td>@item.CurrentReleasedCount</td>
                                 <td>@item.CurrentProgress</td>
                                 <td>@item.GetProgressPercent()%</td>
                                 <td>

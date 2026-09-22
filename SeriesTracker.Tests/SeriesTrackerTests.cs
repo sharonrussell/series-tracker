@@ -22,11 +22,21 @@ public class SeriesTrackerTests
     [Fact]
     public void GetProgressPercent_ReturnsExpectedPercentage()
     {
-        var series = new SeriesItem { CurrentProgress = 7, TotalProgress = 10 };
+        var series = new SeriesItem { CurrentProgress = 7, CurrentReleasedCount = 10, TotalProgress = 20 };
 
         var result = series.GetProgressPercent();
 
         Assert.Equal(70, result);
+    }
+
+    [Fact]
+    public void GetProgressPercent_UsesReleasedCountAsDenominator()
+    {
+        var series = new SeriesItem { CurrentProgress = 5, CurrentReleasedCount = 5, TotalProgress = 10 };
+
+        var result = series.GetProgressPercent();
+
+        Assert.Equal(100, result);
     }
 
     [Fact]
@@ -49,7 +59,7 @@ public class SeriesTrackerTests
     [Fact]
     public void ValidateSeriesDraft_ReturnsError_WhenTitleIsMissing()
     {
-        var result = IndexModel.ValidateSeriesDraft(string.Empty, "Author", 10, 3, SeriesCompletionState.Ongoing);
+        var result = IndexModel.ValidateSeriesDraft(string.Empty, "Author", 10, 5, 3, SeriesCompletionState.Ongoing);
 
         Assert.Equal("Series title is required.", result);
     }
@@ -57,7 +67,7 @@ public class SeriesTrackerTests
     [Fact]
     public void ValidateSeriesDraft_ReturnsError_WhenAuthorIsMissing()
     {
-        var result = IndexModel.ValidateSeriesDraft("The Hobbit", string.Empty, 10, 3, SeriesCompletionState.Ongoing);
+        var result = IndexModel.ValidateSeriesDraft("The Hobbit", string.Empty, 10, 5, 3, SeriesCompletionState.Ongoing);
 
         Assert.Equal("Author is required.", result);
     }
@@ -65,7 +75,7 @@ public class SeriesTrackerTests
     [Fact]
     public void ValidateSeriesDraft_ReturnsError_WhenCompletionStateIsInvalid()
     {
-        var result = IndexModel.ValidateSeriesDraft("The Hobbit", "Author", 10, 3, (SeriesCompletionState)99);
+        var result = IndexModel.ValidateSeriesDraft("The Hobbit", "Author", 10, 5, 3, (SeriesCompletionState)99);
 
         Assert.Equal("Series completion state must be ongoing or completed.", result);
     }
@@ -73,9 +83,25 @@ public class SeriesTrackerTests
     [Fact]
     public void ValidateSeriesDraft_ReturnsNull_WhenDraftIsValid()
     {
-        var result = IndexModel.ValidateSeriesDraft("The Hobbit", "Author", 10, 3, SeriesCompletionState.Completed);
+        var result = IndexModel.ValidateSeriesDraft("The Hobbit", "Author", 10, 5, 3, SeriesCompletionState.Completed);
 
         Assert.Null(result);
+    }
+
+    [Fact]
+    public void ValidateSeriesDraft_ReturnsError_WhenReleasedCountExceedsSeriesLength()
+    {
+        var result = IndexModel.ValidateSeriesDraft("The Hobbit", "Author", 10, 11, 3, SeriesCompletionState.Ongoing);
+
+        Assert.Equal("Released so far must be between 0 and the series length.", result);
+    }
+
+    [Fact]
+    public void ValidateSeriesDraft_ReturnsError_WhenBooksReadExceedsReleasedCount()
+    {
+        var result = IndexModel.ValidateSeriesDraft("The Hobbit", "Author", 10, 5, 6, SeriesCompletionState.Ongoing);
+
+        Assert.Equal("Books read so far must be between 0 and the released count.", result);
     }
 
     [Fact]
@@ -92,6 +118,7 @@ public class SeriesTrackerTests
                 Title = "Test Series",
                 Author = "Test Author",
                 CurrentProgress = 2,
+                CurrentReleasedCount = 3,
                 TotalProgress = 5,
                 CompletionState = SeriesCompletionState.Ongoing
             }
@@ -102,6 +129,7 @@ public class SeriesTrackerTests
         var series = await dbContext.Series.SingleAsync();
         Assert.Equal("Test Series", series.Title);
         Assert.Equal("Test Author", series.Author);
+        Assert.Equal(3, series.CurrentReleasedCount);
         Assert.Equal(SeriesCompletionState.Ongoing, series.CompletionState);
     }
 
@@ -119,6 +147,7 @@ public class SeriesTrackerTests
                 Title = "Test Series",
                 Author = "Test Author",
                 CurrentProgress = 5,
+                CurrentReleasedCount = 5,
                 TotalProgress = 5,
                 CompletionState = SeriesCompletionState.Completed
             }
@@ -145,6 +174,7 @@ public class SeriesTrackerTests
                 Title = "Test Series",
                 Author = "Test Author",
                 CurrentProgress = 5,
+                CurrentReleasedCount = 5,
                 TotalProgress = 5,
                 CompletionState = SeriesCompletionState.Ongoing
             }
@@ -169,6 +199,7 @@ public class SeriesTrackerTests
             Title = "Test Series",
             Author = "Test Author",
             TotalProgress = 5,
+            CurrentReleasedCount = 5,
             CurrentProgress = 3
         };
         dbContext.Series.Add(series);
@@ -194,6 +225,7 @@ public class SeriesTrackerTests
             Title = "Test Series",
             Author = "Test Author",
             TotalProgress = 5,
+            CurrentReleasedCount = 5,
             CurrentProgress = 5,
             CompletionState = SeriesCompletionState.Completed
         };
@@ -210,6 +242,34 @@ public class SeriesTrackerTests
     }
 
     [Fact]
+    public async Task OnPostUpdateAsync_CapsIncrementedProgress_AtReleasedCount()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync();
+        var series = new SeriesItem
+        {
+            Title = "Test Series",
+            Author = "Test Author",
+            TotalProgress = 10,
+            CurrentReleasedCount = 4,
+            CurrentProgress = 4,
+            CompletionState = SeriesCompletionState.Ongoing
+        };
+        dbContext.Series.Add(series);
+        await dbContext.SaveChangesAsync();
+        var pageModel = new IndexModel(dbContext);
+
+        await pageModel.OnPostUpdateAsync(series.Id, incrementBy: 1);
+
+        var updated = await dbContext.Series.SingleAsync();
+        Assert.Equal(4, updated.CurrentProgress);
+        Assert.Equal(100, updated.GetProgressPercent());
+        Assert.Equal(SeriesStatus.Reading, updated.Status);
+    }
+
+    [Fact]
     public async Task OnPostUpdateAsync_MarksReadingStatusCompleted_WhenIncrementReachesLengthForCompletedPublication()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
@@ -221,6 +281,7 @@ public class SeriesTrackerTests
             Title = "Test Series",
             Author = "Test Author",
             TotalProgress = 5,
+            CurrentReleasedCount = 5,
             CurrentProgress = 4,
             Status = SeriesStatus.Reading,
             CompletionState = SeriesCompletionState.Completed
@@ -249,6 +310,7 @@ public class SeriesTrackerTests
             Title = "Test Series",
             Author = "Test Author",
             TotalProgress = 5,
+            CurrentReleasedCount = 5,
             CurrentProgress = 4,
             Status = SeriesStatus.Reading,
             CompletionState = SeriesCompletionState.Ongoing
@@ -277,6 +339,7 @@ public class SeriesTrackerTests
             Title = "Test Series",
             Author = "Test Author",
             TotalProgress = 5,
+            CurrentReleasedCount = 5,
             CurrentProgress = 2,
             CompletionState = SeriesCompletionState.Ongoing
         };
@@ -304,6 +367,7 @@ public class SeriesTrackerTests
             Title = "Original Series",
             Author = "Original Author",
             TotalProgress = 4,
+            CurrentReleasedCount = 2,
             CurrentProgress = 1,
             CompletionState = SeriesCompletionState.Ongoing
         };
@@ -317,6 +381,7 @@ public class SeriesTrackerTests
                 Title = "Updated Series",
                 Author = "Updated Author",
                 TotalProgress = 6,
+                CurrentReleasedCount = 4,
                 CurrentProgress = 3,
                 Status = SeriesStatus.Reading,
                 CompletionState = SeriesCompletionState.Completed
@@ -328,6 +393,7 @@ public class SeriesTrackerTests
         var updated = await dbContext.Series.SingleAsync();
         Assert.Equal("Updated Series", updated.Title);
         Assert.Equal("Updated Author", updated.Author);
+        Assert.Equal(4, updated.CurrentReleasedCount);
         Assert.Equal(SeriesStatus.Reading, updated.Status);
         Assert.Equal(SeriesCompletionState.Completed, updated.CompletionState);
     }
@@ -344,6 +410,7 @@ public class SeriesTrackerTests
             Title = "Original Series",
             Author = "Original Author",
             TotalProgress = 4,
+            CurrentReleasedCount = 2,
             CurrentProgress = 1,
             Status = SeriesStatus.Reading,
             CompletionState = SeriesCompletionState.Ongoing
@@ -358,6 +425,7 @@ public class SeriesTrackerTests
                 Title = "Original Series",
                 Author = "Original Author",
                 TotalProgress = 4,
+                CurrentReleasedCount = 4,
                 CurrentProgress = 4,
                 Status = SeriesStatus.Reading,
                 CompletionState = SeriesCompletionState.Completed
