@@ -78,6 +78,11 @@ public class EditModel : PageModel
             series.CurrentProgress = series.TotalProgress;
         }
 
+        if (series.CurrentProgress == series.TotalProgress)
+        {
+            series.Status = SeriesStatus.Completed;
+        }
+
         series.UpdatedAt = DateTime.UtcNow;
         await _dbContext.SaveChangesAsync();
 

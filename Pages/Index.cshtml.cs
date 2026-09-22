@@ -94,6 +94,11 @@ public class IndexModel : PageModel
             series.CurrentProgress = series.TotalProgress;
         }
 
+        if (series.CurrentProgress == series.TotalProgress)
+        {
+            series.Status = SeriesStatus.Completed;
+        }
+
         _dbContext.Series.Add(series);
         await _dbContext.SaveChangesAsync();
 
@@ -110,7 +115,7 @@ public class IndexModel : PageModel
 
         if (incrementBy > 0)
         {
-            series.CurrentProgress += incrementBy;
+            series.CurrentProgress = Math.Min(series.TotalProgress, series.CurrentProgress + incrementBy);
         }
 
         if (status.HasValue)
@@ -121,6 +126,11 @@ public class IndexModel : PageModel
             {
                 series.CurrentProgress = series.TotalProgress;
             }
+        }
+
+        if (series.TotalProgress > 0 && series.CurrentProgress == series.TotalProgress)
+        {
+            series.Status = SeriesStatus.Completed;
         }
 
         series.UpdatedAt = DateTime.UtcNow;
