@@ -90,48 +90,20 @@
                             <th>Author</th>
                             <th>Status</th>
                             <th>Series state</th>
-                            <th>Series length</th>
-                            <th>Released so far</th>
-                            <th>Books read</th>
                             <th>Progress</th>
-                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var item in Model.SeriesItems)
                         {
-                            <tr>
-                                <td>@item.Title</td>
+                            <tr class="status-row status-row-@item.Status.ToString().ToLower()" tabindex="0" role="link" aria-label="Edit series @item.Title" data-edit-url="@Url.Page("/Series/Edit", new { id = item.Id })">
+                                <td>
+                                    <a asp-page="/Series/Edit" asp-route-id="@item.Id" class="row-title-link" aria-label="Edit series @item.Title">@item.Title</a>
+                                </td>
                                 <td>@item.Author</td>
                                 <td><span class="status-pill status-@item.Status.ToString().ToLower()">@item.Status</span></td>
                                 <td><span class="completion-pill completion-@item.CompletionState.ToString().ToLower()">@item.CompletionState</span></td>
-                                <td>@item.TotalProgress</td>
-                                <td>@item.CurrentReleasedCount</td>
-                                <td>@item.CurrentProgress</td>
-                                <td>@item.GetProgressPercent()%</td>
-                                <td>
-                                    <div class="action-row">
-                                        <a asp-page="/Series/Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline action-symbol-button" aria-label="Edit series" title="Edit series">✎</a>
-
-                                        <form method="post" asp-page-handler="Update">
-                                            <input type="hidden" name="id" value="@item.Id" />
-                                            <input type="hidden" name="incrementBy" value="1" />
-                                            <button type="submit" class="btn btn-sm btn-primary action-symbol-button" aria-label="Add one book read" title="Add one book read">+1</button>
-                                        </form>
-
-                                        <form method="post" asp-page-handler="Update">
-                                            <input type="hidden" name="id" value="@item.Id" />
-                                            <input type="hidden" name="status" value="Completed" />
-                                            <button type="submit" class="btn btn-sm btn-success action-symbol-button" aria-label="Mark series completed" title="Mark series completed">✓</button>
-                                        </form>
-
-                                        <form method="post" asp-page-handler="Update">
-                                            <input type="hidden" name="id" value="@item.Id" />
-                                            <input type="hidden" name="status" value="Dropped" />
-                                            <button type="submit" class="btn btn-sm btn-warning action-symbol-button" aria-label="Drop series" title="Drop series">🗑</button>
-                                        </form>
-                                    </div>
-                                </td>
+                                <td>@item.GetProgressFraction()</td>
                             </tr>
                         }
                     </tbody>

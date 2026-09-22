@@ -40,6 +40,16 @@ public class SeriesTrackerTests
     }
 
     [Fact]
+    public void GetProgressFraction_ReturnsCurrentOverReleasedCount()
+    {
+        var series = new SeriesItem { CurrentProgress = 7, CurrentReleasedCount = 10, TotalProgress = 20 };
+
+        var result = series.GetProgressFraction();
+
+        Assert.Equal("7/10", result);
+    }
+
+    [Fact]
     public void SeriesStatus_DefaultsToReading()
     {
         var series = new SeriesItem();

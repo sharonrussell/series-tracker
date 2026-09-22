@@ -40,26 +40,38 @@ The system SHALL allow a user to record and update the author and publication co
 - **THEN** the system allows the user to choose whether the series is ongoing or completed
 
 ### Requirement: User can view all series at a glance
-The system SHALL present each tracked series in a single dashboard view showing title, author, reading status, publication completion state, series length, current released count, current progress, and compact symbol-based row actions.
+The system SHALL present each tracked series in a single clickable dashboard list showing title, author, reading status, publication completion state, summary progress, and row color by reading status.
 
 #### Scenario: View dashboard
 - **WHEN** a user opens the dashboard
-- **THEN** the system displays all series in a readable list with their current progress values, released count, and metadata
+- **THEN** the system displays all series in a readable list with their summary progress values and metadata
 
 #### Scenario: Dashboard actions omit manual complete
 - **WHEN** a user views actions for a series
-- **THEN** the system offers progress, edit, complete, and drop actions without archive actions
+- **THEN** the system does not show an actions column or inline action buttons on the dashboard list
 
 #### Scenario: Symbol row actions
 - **WHEN** a user views row actions for a series
-- **THEN** the edit action is shown as a pencil symbol, the complete action is shown as a tick symbol, and the drop action is shown as a bin symbol
+- **THEN** the system does not show row action symbols on the dashboard list
 
 #### Scenario: Symbol actions remain accessible
-- **WHEN** a user focuses or hovers over a symbol action
-- **THEN** the system provides an accessible action name for edit, progress, complete, and drop actions
+- **WHEN** a user focuses or hovers over dashboard list navigation
+- **THEN** the system provides an accessible edit navigation name for each clickable row
+
+#### Scenario: Navigate to edit from row
+- **WHEN** a user activates a dashboard row
+- **THEN** the system navigates to that series edit screen
+
+#### Scenario: Hide detailed progress columns
+- **WHEN** a user views the dashboard list
+- **THEN** the system does not show separate series length, released so far, or books read columns
+
+#### Scenario: Color rows by reading status
+- **WHEN** a user views the dashboard list
+- **THEN** completed series rows are green, reading series rows are amber, and dropped series rows are red
 
 ### Requirement: User can update progress for a series
-The system SHALL allow a user to increase the recorded progress for a series without allowing books read to exceed the current released count, SHALL NOT allow current released count to exceed the configured series length, and SHALL mark the series reading status completed when progress reaches the series length only if the publication completion state is not ongoing.
+The system SHALL allow a user to increase or edit recorded progress for a series from the edit screen without allowing books read to exceed the current released count, SHALL NOT allow current released count to exceed the configured series length, and SHALL mark the series reading status completed when progress reaches the series length only if the publication completion state is not ongoing.
 
 #### Scenario: Increase progress
 - **WHEN** a user records progress for a series after reading more content and the updated value is within the current released count

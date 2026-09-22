@@ -215,7 +215,7 @@ th, td {
   padding: 0.9rem 0.75rem;
   border-bottom: 1px solid #edf1f7;
   text-align: left;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 th {
@@ -223,6 +223,43 @@ th {
   font-size: 0.76rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.status-row {
+  transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  cursor: pointer;
+}
+
+.status-row:hover,
+.status-row:focus-visible {
+  box-shadow: inset 0 0 0 1px rgba(49, 94, 251, 0.12);
+  background-color: rgba(148, 163, 184, 0.06);
+  outline: none;
+}
+
+.status-row-reading {
+  background-color: #fffaf0;
+}
+
+.status-row-completed {
+  background-color: #f0fdf4;
+}
+
+.status-row-dropped {
+  background-color: #fff1f2;
+}
+
+.row-title-link {
+  color: #172033;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.row-title-link:hover,
+.row-title-link:focus-visible {
+  color: #1d4ed8;
+  text-decoration: underline;
+  outline: none;
 }
 
 .status-pill {
@@ -234,9 +271,9 @@ th {
 }
 
 .status-active { background: #dfeeff; color: #1547a8; }
-.status-reading { background: #dfeeff; color: #1547a8; }
+.status-reading { background: #fef3c7; color: #92400e; }
 .status-completed { background: #dcfce7; color: #166534; }
-.status-dropped { background: #fef3c7; color: #92400e; }
+.status-dropped { background: #fee2e2; color: #991b1b; }
 
 .completion-pill {
   display: inline-block;

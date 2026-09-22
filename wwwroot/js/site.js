@@ -1,4 +1,24 @@
-﻿// Please see documentation at https://learn.microsoft.com/aspnet/core/client-side/bundling-and-minification
-// for details on configuring this project to bundle and minify static web assets.
+﻿document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.status-row[data-edit-url]').forEach((row) => {
+        const editUrl = row.getAttribute('data-edit-url');
+        if (!editUrl) {
+            return;
+        }
 
-// Write your JavaScript code.
+        const openEdit = (event) => {
+            if (event.target.closest('a, button, input, select, textarea, label')) {
+                return;
+            }
+
+            window.location.href = editUrl;
+        };
+
+        row.addEventListener('click', openEdit);
+        row.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                window.location.href = editUrl;
+            }
+        });
+    });
+});

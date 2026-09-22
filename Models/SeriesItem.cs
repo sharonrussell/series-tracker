@@ -44,4 +44,14 @@ public class SeriesItem
 
         return (int)Math.Round((double)CurrentProgress / CurrentReleasedCount * 100);
     }
+
+    public string GetProgressFraction()
+    {
+        if (CurrentReleasedCount <= 0)
+        {
+            return "0/0";
+        }
+
+        return $"{CurrentProgress}/{CurrentReleasedCount}";
+    }
 }
