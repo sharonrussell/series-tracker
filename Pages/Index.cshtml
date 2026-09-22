@@ -31,7 +31,11 @@
     <section class="card">
         <div class="list-toolbar">
             <h2>Current list</h2>
-            <a asp-page="/Index" asp-route-statusFilter="@Model.StatusFilter" asp-route-showAddDraft="true" class="primary-button inline-button">Add series</a>
+            <form method="get" class="toolbar-action-form">
+                <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
+                <input type="hidden" name="ShowAddDraft" value="true" />
+                <button type="submit" class="add-series-button" aria-label="Add a new series" aria-expanded="@Model.ShowAddDraft.ToString().ToLowerInvariant()" title="Add a new series">+</button>
+            </form>
         </div>
 
         @if (Model.ShowAddDraft)

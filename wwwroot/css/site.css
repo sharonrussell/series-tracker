@@ -58,6 +58,39 @@ h1, h2 {
   align-items: center;
   gap: 1rem;
   margin-bottom: 1rem;
+  min-height: 3rem;
+}
+
+.toolbar-action-form {
+  margin: 0;
+}
+
+.add-series-button {
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  background: linear-gradient(135deg, #315efb, #2549d8);
+  color: #ffffff;
+  font-size: 1.9rem;
+  font-weight: 500;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 12px 20px rgba(49, 94, 251, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.add-series-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 24px rgba(49, 94, 251, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.add-series-button:focus-visible {
+  outline: 3px solid rgba(49, 94, 251, 0.24);
+  outline-offset: 3px;
 }
 
 .inline-button {
