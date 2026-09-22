@@ -50,6 +50,26 @@ public class SeriesTrackerTests
     }
 
     [Fact]
+    public void GetDashboardProgressText_ReturnsDropped_ForDroppedSeries()
+    {
+        var series = new SeriesItem { CurrentProgress = 3, CurrentReleasedCount = 5, TotalProgress = 10, Status = SeriesStatus.Dropped };
+
+        var result = series.GetDashboardProgressText();
+
+        Assert.Equal("Dropped", result);
+    }
+
+    [Fact]
+    public void GetDashboardProgressText_ReturnsProgress_ForReadingSeries()
+    {
+        var series = new SeriesItem { CurrentProgress = 3, CurrentReleasedCount = 5, TotalProgress = 10, Status = SeriesStatus.Reading };
+
+        var result = series.GetDashboardProgressText();
+
+        Assert.Equal("3/10", result);
+    }
+
+    [Fact]
     public void GetAvailableToReadCount_ReturnsReleasedBooksNotRead()
     {
         var series = new SeriesItem { CurrentProgress = 3, CurrentReleasedCount = 10, TotalProgress = 20 };

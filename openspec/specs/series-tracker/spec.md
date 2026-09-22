@@ -40,11 +40,11 @@ The system SHALL allow a user to record and update the author and publication co
 - **THEN** the system allows the user to choose whether the series is ongoing or completed
 
 ### Requirement: User can view all series at a glance
-The system SHALL present each tracked series in a single dashboard list showing title, author, publication completion state, summary progress, and row color by reading status, without a separate status column in the list view.
+The system SHALL present each tracked series in a single clickable dashboard list showing title, author, summary progress, and row color as the reading-status indicator, without separate status or series-state columns.
 
 #### Scenario: View dashboard
 - **WHEN** a user opens the dashboard
-- **THEN** the system displays all series in a readable list with their summary progress values and metadata, and the status column is omitted from the list view
+- **THEN** the system displays all series in a readable list with title, author, summary progress, and row colors, without status or series-state columns
 
 #### Scenario: Dashboard actions omit manual complete
 - **WHEN** a user views actions for a series
@@ -64,11 +64,11 @@ The system SHALL present each tracked series in a single dashboard list showing 
 
 #### Scenario: Series state reflects completion
 - **WHEN** a series has reached 100% progress
-- **THEN** the series state displays as completed and the row renders in green
+- **THEN** the row renders in green and no separate series-state flag is shown in the list
 
 #### Scenario: Hide detailed progress columns
 - **WHEN** a user views the dashboard list
-- **THEN** the system does not show separate status or redundant status metadata columns when the list is already grouped by publication state and progress
+- **THEN** the system does not show separate status or series-state columns when row color already communicates reading status
 
 #### Scenario: Color rows by reading status
 - **WHEN** a user views the dashboard list
@@ -81,6 +81,10 @@ The system SHALL present each tracked series in a single dashboard list showing 
 #### Scenario: Indicate that the user is up to date
 - **WHEN** a series is ongoing and the user has read all currently released books
 - **THEN** the progress cell shows `Up to date` without adding future unreleased-book counts
+
+#### Scenario: Identify dropped series in the list
+- **WHEN** a series has been dropped
+- **THEN** the progress cell shows `Dropped` instead of a progress or availability indicator, and the row uses the dropped color
 
 ### Requirement: Dashboard UI changes are refreshed and smoke tested
 Any dashboard UI change SHALL be verified against a freshly refreshed browser view before it is considered complete.

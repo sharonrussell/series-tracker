@@ -88,14 +88,12 @@
                         <tr>
                             <th>Title</th>
                             <th>Author</th>
-                            <th>Series state</th>
                             <th>Progress</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var item in Model.SeriesItems)
                         {
-                            var displayCompletionState = item.GetDisplayCompletionState();
                             var rowClass = item.IsProgressComplete() ? "status-row-completed" : $"status-row-{item.Status.ToString().ToLower()}";
                             var availableToReadCount = item.GetAvailableToReadCount();
 
@@ -104,14 +102,13 @@
                                     <a asp-page="/Series/Edit" asp-route-id="@item.Id" class="row-title-link" aria-label="Edit series @item.Title">@item.Title</a>
                                 </td>
                                 <td>@item.Author</td>
-                                <td><span class="completion-pill completion-@displayCompletionState.ToString().ToLower()">@displayCompletionState</span></td>
                                 <td>
-                                    <div>@item.GetProgressFraction()</div>
-                                    @if (availableToReadCount > 0)
+                                    <div>@item.GetDashboardProgressText()</div>
+                                    @if (item.Status != Series_Tracker.Models.SeriesStatus.Dropped && availableToReadCount > 0)
                                     {
                                         <small class="progress-note">@availableToReadCount @(availableToReadCount == 1 ? "book" : "books") to read</small>
                                     }
-                                    else if (item.IsUpToDate())
+                                    else if (item.Status != Series_Tracker.Models.SeriesStatus.Dropped && item.IsUpToDate())
                                     {
                                         <small class="progress-note">Up to date</small>
                                     }

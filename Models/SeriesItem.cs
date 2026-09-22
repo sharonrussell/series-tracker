@@ -55,6 +55,11 @@ public class SeriesItem
         return $"{CurrentProgress}/{TotalProgress}";
     }
 
+    public string GetDashboardProgressText()
+    {
+        return Status == SeriesStatus.Dropped ? "Dropped" : GetProgressFraction();
+    }
+
     public int GetAvailableToReadCount()
     {
         return Math.Max(0, CurrentReleasedCount - CurrentProgress);
