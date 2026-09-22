@@ -52,25 +52,51 @@ h1, h2 {
   margin-bottom: 1.5rem;
 }
 
-.add-series-card {
-  max-width: 960px;
-}
-
-.series-form {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+.list-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   gap: 1rem;
-  margin-top: 1rem;
+  margin-bottom: 1rem;
 }
 
-.field-group {
+.inline-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  min-width: 150px;
+}
+
+.inline-add-form {
+  margin-bottom: 1rem;
+}
+
+.inline-add-row {
+  display: grid;
+  grid-template-columns: minmax(200px, 2fr) minmax(140px, 1fr) minmax(140px, 1fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+  background: #f8faff;
+  border: 1px solid #dfe7f5;
+  border-radius: 14px;
+  padding: 0.9rem;
+}
+
+.inline-cell {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
 }
 
-.field-group.wide {
-  grid-column: 1 / -1;
+.wide-cell {
+  min-width: 0;
+}
+
+.inline-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
 }
 
 label {
@@ -101,6 +127,10 @@ input:focus, select:focus, textarea:focus {
   padding: 0.6rem 1rem;
   cursor: pointer;
   transition: transform 0.15s ease, opacity 0.15s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .primary-button:hover, .btn:hover {
@@ -110,7 +140,6 @@ input:focus, select:focus, textarea:focus {
 .primary-button {
   background: linear-gradient(135deg, #315efb, #2549d8);
   color: #ffffff;
-  min-width: 180px;
   box-shadow: 0 12px 18px rgba(49, 94, 251, 0.18);
 }
 

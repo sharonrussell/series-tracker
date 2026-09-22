@@ -28,41 +28,37 @@
         <div class="alert alert-warning">@Model.Message</div>
     }
 
-    <section class="card add-series-card">
-        <h2>Add a new series</h2>
-
-        <form method="post" asp-page-handler="Add" class="series-form">
-            <div class="field-group">
-                <label asp-for="Form.Title">Title</label>
-                <input asp-for="Form.Title" />
-            </div>
-
-            <div class="field-group">
-                <label asp-for="Form.TotalProgress">Total progress</label>
-                <input asp-for="Form.TotalProgress" type="number" min="1" />
-            </div>
-
-            <div class="field-group">
-                <label asp-for="Form.CurrentProgress">Current progress</label>
-                <input asp-for="Form.CurrentProgress" type="number" min="0" />
-            </div>
-
-            <div class="field-group">
-                <label asp-for="Form.Status">Status</label>
-                <select asp-for="Form.Status" asp-items="Html.GetEnumSelectList<Series_Tracker.Models.SeriesStatus>()"></select>
-            </div>
-
-            <div class="field-group wide">
-                <label asp-for="Form.Notes">Notes</label>
-                <textarea asp-for="Form.Notes" rows="3"></textarea>
-            </div>
-
-            <button type="submit" class="primary-button">Add series</button>
-        </form>
-    </section>
-
     <section class="card">
-        <h2>Current list</h2>
+        <div class="list-toolbar">
+            <h2>Current list</h2>
+            <a asp-page="/Index" asp-route-statusFilter="@Model.StatusFilter" asp-route-showAddDraft="true" class="primary-button inline-button">Add series</a>
+        </div>
+
+        @if (Model.ShowAddDraft)
+        {
+            <form method="post" asp-page-handler="Add" class="inline-add-form">
+                <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
+                <input type="hidden" name="ShowAddDraft" value="true" />
+                <div class="inline-add-row">
+                    <div class="inline-cell wide-cell">
+                        <label asp-for="Form.Title">Title</label>
+                        <input asp-for="Form.Title" placeholder="Series title" />
+                    </div>
+                    <div class="inline-cell">
+                        <label asp-for="Form.TotalProgress">Series length</label>
+                        <input asp-for="Form.TotalProgress" type="number" min="1" placeholder="Length" />
+                    </div>
+                    <div class="inline-cell">
+                        <label asp-for="Form.CurrentProgress">Books read</label>
+                        <input asp-for="Form.CurrentProgress" type="number" min="0" placeholder="Read so far" />
+                    </div>
+                    <div class="inline-actions">
+                        <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                        <a asp-page="/Index" asp-route-statusFilter="@Model.StatusFilter" class="btn btn-sm btn-secondary">Cancel</a>
+                    </div>
+                </div>
+            </form>
+        }
 
         @if (!Model.SeriesItems.Any())
         {
@@ -76,7 +72,8 @@
                         <tr>
                             <th>Title</th>
                             <th>Status</th>
-                            <th>Progress</th>
+                            <th>Series length</th>
+                            <th>Books read</th>
                             <th>Completion</th>
                             <th>Notes</th>
                             <th>Actions</th>
@@ -88,7 +85,8 @@
                             <tr>
                                 <td>@item.Title</td>
                                 <td><span class="status-pill status-@item.Status.ToString().ToLower()">@item.Status</span></td>
-                                <td>@item.CurrentProgress / @item.TotalProgress</td>
+                                <td>@item.TotalProgress</td>
+                                <td>@item.CurrentProgress</td>
                                 <td>@item.GetProgressPercent()%</td>
                                 <td>@(string.IsNullOrWhiteSpace(item.Notes) ? "-" : item.Notes)</td>
                                 <td>

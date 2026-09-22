@@ -1,4 +1,5 @@
 using Series_Tracker.Models;
+using Series_Tracker.Pages;
 
 namespace SeriesTracker.Tests;
 
@@ -30,5 +31,21 @@ public class SeriesTrackerTests
         var series = new SeriesItem { Status = SeriesStatus.Archived };
 
         Assert.True(series.IsArchived);
+    }
+
+    [Fact]
+    public void ValidateSeriesDraft_ReturnsError_WhenTitleIsMissing()
+    {
+        var result = IndexModel.ValidateSeriesDraft(string.Empty, 10, 3);
+
+        Assert.Equal("Series title is required.", result);
+    }
+
+    [Fact]
+    public void ValidateSeriesDraft_ReturnsNull_WhenDraftIsValid()
+    {
+        var result = IndexModel.ValidateSeriesDraft("The Hobbit", 10, 3);
+
+        Assert.Null(result);
     }
 }

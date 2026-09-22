@@ -18,6 +18,9 @@ public class IndexModel : PageModel
     [BindProperty(SupportsGet = true)]
     public string StatusFilter { get; set; } = "All";
 
+    [BindProperty(SupportsGet = true)]
+    public bool ShowAddDraft { get; set; }
+
     [BindProperty]
     public SeriesFormModel Form { get; set; } = new();
 
@@ -32,11 +35,33 @@ public class IndexModel : PageModel
         await LoadSeriesAsync();
     }
 
+    public static string? ValidateSeriesDraft(string title, int totalProgress, int currentProgress)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return "Series title is required.";
+        }
+
+        if (totalProgress < 1)
+        {
+            return "Series length must be at least 1.";
+        }
+
+        if (currentProgress < 0 || currentProgress > totalProgress)
+        {
+            return "Books read so far must be between 0 and the series length.";
+        }
+
+        return null;
+    }
+
     public async Task<IActionResult> OnPostAddAsync()
     {
-        if (string.IsNullOrWhiteSpace(Form.Title))
+        var validationMessage = ValidateSeriesDraft(Form.Title, Form.TotalProgress, Form.CurrentProgress);
+        if (!string.IsNullOrWhiteSpace(validationMessage))
         {
-            Message = "Series title is required.";
+            Message = validationMessage;
+            ShowAddDraft = true;
             await LoadSeriesAsync();
             return Page();
         }
@@ -60,7 +85,7 @@ public class IndexModel : PageModel
         _dbContext.Series.Add(series);
         await _dbContext.SaveChangesAsync();
 
-        return RedirectToPage();
+        return RedirectToPage(new { StatusFilter });
     }
 
     public async Task<IActionResult> OnPostUpdateAsync(int id, int incrementBy = 0, SeriesStatus? status = null)
