@@ -31,7 +31,7 @@ public class IndexModel : PageModel
 
     public string? Message { get; private set; }
 
-    public IReadOnlyList<string> StatusOptions { get; } = Enum.GetNames<SeriesStatus>();
+    public IReadOnlyList<string> StatusOptions { get; } = ["Reading", "Completed", "Dropped"];
 
     public bool IsEditorOpen => ShowAddDraft || EditId.HasValue;
 
@@ -74,7 +74,6 @@ public class IndexModel : PageModel
                 Title = Form.Title.Trim(),
                 Author = Form.Author.Trim(),
                 Status = SeriesStatus.NotStarted,
-                CompletionState = Form.CompletionState,
                 TotalProgress = Math.Max(1, Form.TotalProgress),
                 CurrentReleasedCount = Math.Clamp(Form.CurrentReleasedCount, 0, Math.Max(1, Form.TotalProgress)),
                 CurrentProgress = Math.Clamp(Form.CurrentProgress, 0, Math.Clamp(Form.CurrentReleasedCount, 0, Math.Max(1, Form.TotalProgress))),
@@ -99,7 +98,6 @@ public class IndexModel : PageModel
             series.TotalProgress = Math.Max(1, Form.TotalProgress);
             series.CurrentReleasedCount = Math.Clamp(Form.CurrentReleasedCount, 0, series.TotalProgress);
             series.CurrentProgress = Math.Clamp(Form.CurrentProgress, 0, series.CurrentReleasedCount);
-            series.CompletionState = Form.CompletionState;
             NormalizeStatus(series, Form.IsDropped || Form.Status == SeriesStatus.Dropped);
 
             series.UpdatedAt = DateTime.UtcNow;
@@ -212,7 +210,13 @@ public class IndexModel : PageModel
             series.Status = series.GetDerivedStatus();
         }
 
-        if (!string.Equals(StatusFilter, "All", StringComparison.OrdinalIgnoreCase) &&
+        if (string.Equals(StatusFilter, "Reading", StringComparison.OrdinalIgnoreCase))
+        {
+            seriesItems = seriesItems
+                .Where(series => series.Status is SeriesStatus.NotStarted or SeriesStatus.Reading or SeriesStatus.UpToDate)
+                .ToList();
+        }
+        else if (!string.Equals(StatusFilter, "All", StringComparison.OrdinalIgnoreCase) &&
             Enum.TryParse<SeriesStatus>(StatusFilter, true, out var parsedStatus))
         {
             seriesItems = seriesItems.Where(series => series.Status == parsedStatus).ToList();
@@ -223,6 +227,14 @@ public class IndexModel : PageModel
 
     private static void NormalizeStatus(SeriesItem series, bool isDropped)
     {
+        if (series.CurrentProgress >= series.TotalProgress)
+        {
+            series.CurrentReleasedCount = series.TotalProgress;
+            series.CurrentProgress = series.TotalProgress;
+        }
+
+        series.CompletionState = series.GetDerivedCompletionState();
+
         if (isDropped)
         {
             series.Status = SeriesStatus.Dropped;

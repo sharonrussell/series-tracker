@@ -74,7 +74,7 @@ public class SeriesItem
             return SeriesStatus.NotStarted;
         }
 
-        if (TotalProgress > 0 && CurrentProgress >= TotalProgress && CompletionState == SeriesCompletionState.Completed)
+        if (TotalProgress > 0 && CurrentProgress >= TotalProgress && GetDerivedCompletionState() == SeriesCompletionState.Completed)
         {
             return SeriesStatus.Completed;
         }
@@ -102,8 +102,13 @@ public class SeriesItem
         return TotalProgress > 0 && CurrentProgress >= TotalProgress;
     }
 
+    public SeriesCompletionState GetDerivedCompletionState()
+    {
+        return TotalProgress > 0 && CurrentReleasedCount >= TotalProgress ? SeriesCompletionState.Completed : SeriesCompletionState.Ongoing;
+    }
+
     public SeriesCompletionState GetDisplayCompletionState()
     {
-        return IsProgressComplete() ? SeriesCompletionState.Completed : CompletionState;
+        return GetDerivedCompletionState();
     }
 }

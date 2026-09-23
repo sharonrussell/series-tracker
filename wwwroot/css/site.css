@@ -514,6 +514,13 @@ th {
   font-size: 0.74rem;
 }
 
+.derived-state-note {
+  clear: both;
+  margin: 0 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+
 .action-row {
   display: flex;
   flex-wrap: wrap;

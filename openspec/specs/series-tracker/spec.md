@@ -6,15 +6,15 @@ The series tracker lets a user maintain an up-to-date personal list of series th
 ## Requirements
 
 ### Requirement: User can add a series to their list
-The system SHALL allow a user to add a new series from a shared dashboard editor opened in create mode, with title, author, publication completion state, series length, current released count, and progress, without leaving the dashboard.
+The system SHALL allow a user to add a new series from a shared dashboard editor opened in create mode, with title, author, series length, current released count, and progress, without manually selecting publication status and without leaving the dashboard.
 
 #### Scenario: Begin inline creation
 - **WHEN** a user clicks the Add button above the series list
 - **THEN** the system opens the shared series editor in create mode without navigating away from the dashboard
 
 #### Scenario: Save inline series
-- **WHEN** a user enters a title, author, series completion state, series length, released so far, and books read so far and saves the row
-- **THEN** the system creates the series record, closes the editor, and refreshes the dashboard to show it in the active list with its metadata and release progress
+- **WHEN** a user enters a title, author, series length, released so far, and books read so far and saves the row
+- **THEN** the system creates the series record, derives publication status from released count and series length, closes the editor, and refreshes the dashboard to show it in the active list with its metadata and release progress
 
 #### Scenario: New series defaults to reading
 - **WHEN** a user opens the shared editor in create mode
@@ -33,15 +33,15 @@ The system SHALL allow a user to add a new series from a shared dashboard editor
 - **THEN** the system rejects the draft and explains that books read cannot exceed released count
 
 ### Requirement: User can maintain series metadata
-The system SHALL allow a user to record and update the author and publication completion state for a tracked series.
+The system SHALL allow a user to record and update the author and derive publication status from released count and configured series length for a tracked series.
 
 #### Scenario: Edit series metadata
-- **WHEN** a user edits an existing series and changes the author or series completion state
-- **THEN** the system saves the updated metadata and shows it with the series on subsequent views
+- **WHEN** a user edits an existing series and changes the author, series length, or released count
+- **THEN** the system saves the updated metadata and shows it with the derived publication status on subsequent views
 
 #### Scenario: Select publication completion state
 - **WHEN** a user records series metadata
-- **THEN** the system allows the user to choose whether the series is ongoing or completed
+- **THEN** the system does not show a manual publication-state selector and instead derives whether the series is ongoing or fully released from released count compared with series length
 
 ### Requirement: User can view all series at a glance
 The system SHALL present each tracked series in a single clickable dashboard list showing a consolidated series identity, derived reading status through row color, summary progress, and availability notes, without separate status or series-state columns.
@@ -144,7 +144,7 @@ Any dashboard UI change SHALL be verified against a freshly refreshed browser vi
 - **THEN** the developer refreshes the running UI and performs a smoke test that checks the changed behavior is visible and the dashboard remains usable
 
 ### Requirement: User can update progress for a series
-The system SHALL allow a user to increase or reduce recorded progress from the shared editor, SHALL NOT allow books read to exceed the current released count, SHALL NOT allow current released count to exceed the configured series length, and SHALL derive reading status from the resulting progress and publication state unless the series is manually dropped.
+The system SHALL allow a user to increase or reduce recorded progress from the shared editor, SHALL NOT allow books read to exceed the current released count, SHALL NOT allow current released count to exceed the configured series length, SHALL derive publication status from released count and series length, and SHALL derive reading status from the resulting progress unless the series is manually dropped.
 
 #### Scenario: Increase progress
 - **WHEN** a user records progress for a series after reading more content and the updated value is within the current released count
@@ -155,12 +155,12 @@ The system SHALL allow a user to increase or reduce recorded progress from the s
 - **THEN** the system saves books read no higher than the current released count and does not exceed 100% progress against released content
 
 #### Scenario: Complete progress exactly
-- **WHEN** a user records progress that makes books read equal the series length and the publication completion state is completed
-- **THEN** the system saves the updated progress and marks the reading status completed
+- **WHEN** a user records progress that makes books read equal the series length
+- **THEN** the system saves the updated progress, sets released count to the series length when necessary, derives publication status as fully released, and derives reading status as completed
 
 #### Scenario: Keep ongoing publication in reading status
-- **WHEN** a user records progress that makes books read equal the current released count and the publication completion state is ongoing
-- **THEN** the system saves the updated progress and derives the reading status as up to date without marking it completed
+- **WHEN** a user records progress that makes books read equal the current released count and the current released count is less than series length
+- **THEN** the system saves the updated progress, derives publication status as ongoing, and derives reading status as up to date without marking it completed
 
 #### Scenario: Cap progress at released count
 - **WHEN** a user records progress that would make books read exceed the current released count
@@ -190,7 +190,7 @@ The system SHALL allow a user to manually set a series to dropped, while reading
 - **THEN** the system derives not started, reading, up to date, or completed from the recorded progress and publication state
 
 ### Requirement: User can see derived reading status
-The system SHALL derive the non-dropped reading status using this precedence: Dropped when manually overridden; Not started when books read is zero; Completed when books read equals series length and publication is complete; Up to date when all released books are read while publication is ongoing; otherwise Reading.
+The system SHALL derive the non-dropped reading status using this precedence: Dropped when manually overridden; Not started when books read is zero; Completed when books read equals series length and publication is fully released; Up to date when all released books are read while publication is ongoing; otherwise Reading.
 
 #### Scenario: Derive not started
 - **WHEN** books read is zero and the series is not dropped
@@ -205,8 +205,23 @@ The system SHALL derive the non-dropped reading status using this precedence: Dr
 - **THEN** the series status is up to date
 
 #### Scenario: Derive completed
-- **WHEN** books read equals series length and the publication completion state is completed
-- **THEN** the series status is completed and the row uses the green color
+- **WHEN** books read equals series length and released count equals series length
+- **THEN** the publication status is fully released, the series status is completed, and the row uses the green color
+
+### Requirement: User can see derived publication status
+The system SHALL derive publication status from released count compared with series length instead of requiring manual publication-state selection.
+
+#### Scenario: Derive ongoing publication
+- **WHEN** released so far is less than series length
+- **THEN** the publication status is ongoing
+
+#### Scenario: Derive fully released publication
+- **WHEN** released so far equals series length
+- **THEN** the publication status is fully released
+
+#### Scenario: Full progress implies fully released publication
+- **WHEN** books read is set to the configured series length
+- **THEN** the system treats released so far as the series length and derives publication status as fully released
 
 ### Requirement: User can archive a finished or dropped series
 The system SHALL NOT provide an archive workflow or dedicated archived view for tracked series.

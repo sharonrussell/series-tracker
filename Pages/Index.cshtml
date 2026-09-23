@@ -14,10 +14,9 @@
             <label for="statusFilter">Filter</label>
             <select id="statusFilter" name="StatusFilter" onchange="this.form.submit()">
                 <option value="All" selected="@(Model.StatusFilter == "All")">All</option>
-                @foreach (var status in Model.StatusOptions)
-                {
-                    <option value="@status" selected="@(Model.StatusFilter == status)">@status.Replace("NotStarted", "Not started").Replace("UpToDate", "Up to date")</option>
-                }
+                <option value="Reading" selected="@(Model.StatusFilter == "Reading")">Reading</option>
+                <option value="Completed" selected="@(Model.StatusFilter == "Completed")">Completed</option>
+                <option value="Dropped" selected="@(Model.StatusFilter == "Dropped")">Dropped</option>
             </select>
         </form>
     </header>
@@ -89,10 +88,10 @@
 
                     <fieldset class="editor-section">
                         <legend>Tracking</legend>
-                        <div class="field-group">
-                            <label asp-for="Form.CompletionState">Series state</label>
-                            <select asp-for="Form.CompletionState" asp-items="Html.GetEnumSelectList<Series_Tracker.Models.SeriesCompletionState>()"></select>
-                        </div>
+                        <p class="derived-state-note">
+                            Publication status: <strong>@(Model.Form.CurrentReleasedCount >= Model.Form.TotalProgress ? "Fully released" : "Ongoing")</strong>
+                            <span>Derived from released so far and series length.</span>
+                        </p>
                         @if (Model.IsEditMode)
                         {
                             <div class="field-group">
