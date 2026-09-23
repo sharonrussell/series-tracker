@@ -84,7 +84,7 @@ The system SHALL present each tracked series in a single clickable dashboard lis
 
 #### Scenario: Identify dropped series in the list
 - **WHEN** a series has been dropped
-- **THEN** the progress cell shows `Dropped` instead of a progress or availability indicator, and the row uses the dropped color
+- **THEN** the progress cell shows the numeric progress fraction with `Dropped` displayed beneath it as a secondary note, and the row uses the dropped color
 
 ### Requirement: Dashboard UI changes are refreshed and smoke tested
 Any dashboard UI change SHALL be verified against a freshly refreshed browser view before it is considered complete.

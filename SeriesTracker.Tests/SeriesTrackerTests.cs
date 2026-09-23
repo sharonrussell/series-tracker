@@ -56,7 +56,7 @@ public class SeriesTrackerTests
 
         var result = series.GetDashboardProgressText();
 
-        Assert.Equal("Dropped", result);
+        Assert.Equal("3/10", result);
     }
 
     [Fact]

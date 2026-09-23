@@ -104,11 +104,15 @@
                                 <td>@item.Author</td>
                                 <td>
                                     <div>@item.GetDashboardProgressText()</div>
-                                    @if (item.Status != Series_Tracker.Models.SeriesStatus.Dropped && availableToReadCount > 0)
+                                    @if (item.Status == Series_Tracker.Models.SeriesStatus.Dropped)
+                                    {
+                                        <small class="progress-note">Dropped</small>
+                                    }
+                                    else if (availableToReadCount > 0)
                                     {
                                         <small class="progress-note">@availableToReadCount @(availableToReadCount == 1 ? "book" : "books") to read</small>
                                     }
-                                    else if (item.Status != Series_Tracker.Models.SeriesStatus.Dropped && item.IsUpToDate())
+                                    else if (item.IsUpToDate())
                                     {
                                         <small class="progress-note">Up to date</small>
                                     }

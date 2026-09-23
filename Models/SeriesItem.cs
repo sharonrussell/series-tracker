@@ -57,7 +57,7 @@ public class SeriesItem
 
     public string GetDashboardProgressText()
     {
-        return Status == SeriesStatus.Dropped ? "Dropped" : GetProgressFraction();
+        return GetProgressFraction();
     }
 
     public int GetAvailableToReadCount()
