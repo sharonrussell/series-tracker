@@ -2,9 +2,11 @@ namespace Series_Tracker.Models;
 
 public enum SeriesStatus
 {
-    Reading = 0,
-    Completed = 1,
-    Dropped = 2
+    NotStarted = 0,
+    Reading = 1,
+    UpToDate = 2,
+    Completed = 3,
+    Dropped = 4
 }
 
 public enum SeriesCompletionState
@@ -58,6 +60,31 @@ public class SeriesItem
     public string GetDashboardProgressText()
     {
         return GetProgressFraction();
+    }
+
+    public SeriesStatus GetDerivedStatus()
+    {
+        if (Status == SeriesStatus.Dropped)
+        {
+            return SeriesStatus.Dropped;
+        }
+
+        if (CurrentProgress <= 0)
+        {
+            return SeriesStatus.NotStarted;
+        }
+
+        if (TotalProgress > 0 && CurrentProgress >= TotalProgress && CompletionState == SeriesCompletionState.Completed)
+        {
+            return SeriesStatus.Completed;
+        }
+
+        if (CurrentReleasedCount > 0 && CurrentProgress >= CurrentReleasedCount && CurrentReleasedCount < TotalProgress)
+        {
+            return SeriesStatus.UpToDate;
+        }
+
+        return SeriesStatus.Reading;
     }
 
     public int GetAvailableToReadCount()

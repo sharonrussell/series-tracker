@@ -49,6 +49,41 @@ public class SeriesTrackerTests
         Assert.Equal("7/20", result);
     }
 
+    [Theory]
+    [InlineData(SeriesStatus.Dropped, 0, 0, 10, SeriesCompletionState.Ongoing)]
+    [InlineData(SeriesStatus.NotStarted, 0, 0, 10, SeriesCompletionState.Ongoing)]
+    [InlineData(SeriesStatus.Reading, 2, 5, 10, SeriesCompletionState.Ongoing)]
+    [InlineData(SeriesStatus.UpToDate, 5, 5, 10, SeriesCompletionState.Ongoing)]
+    [InlineData(SeriesStatus.Completed, 10, 10, 10, SeriesCompletionState.Completed)]
+    public void GetDerivedStatus_ReturnsExpectedState(SeriesStatus storedStatus, int currentProgress, int currentReleasedCount, int totalProgress, SeriesCompletionState completionState)
+    {
+        var series = new SeriesItem
+        {
+            Status = storedStatus,
+            CurrentProgress = currentProgress,
+            CurrentReleasedCount = currentReleasedCount,
+            TotalProgress = totalProgress,
+            CompletionState = completionState
+        };
+
+        Assert.Equal(storedStatus, series.GetDerivedStatus());
+    }
+
+    [Fact]
+    public void GetDerivedStatus_DoesNotRemainCompleted_WhenProgressIsReduced()
+    {
+        var series = new SeriesItem
+        {
+            Status = SeriesStatus.Completed,
+            CurrentProgress = 4,
+            CurrentReleasedCount = 10,
+            TotalProgress = 10,
+            CompletionState = SeriesCompletionState.Completed
+        };
+
+        Assert.Equal(SeriesStatus.Reading, series.GetDerivedStatus());
+    }
+
     [Fact]
     public void GetDashboardProgressText_ReturnsDropped_ForDroppedSeries()
     {
@@ -564,6 +599,46 @@ public class SeriesTrackerTests
         var created = await dbContext.Series.SingleAsync();
         Assert.Equal(SeriesStatus.Reading, created.Status);
         Assert.Equal(2, created.CurrentProgress);
+    }
+
+    [Fact]
+    public async Task OnPostSaveAsync_ReducingCompletedProgressDerivesReading()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync();
+        var series = new SeriesItem
+        {
+            Title = "Completed Series",
+            Author = "Test Author",
+            TotalProgress = 10,
+            CurrentReleasedCount = 10,
+            CurrentProgress = 10,
+            Status = SeriesStatus.Completed,
+            CompletionState = SeriesCompletionState.Completed
+        };
+        dbContext.Series.Add(series);
+        await dbContext.SaveChangesAsync();
+        var pageModel = new IndexModel(dbContext)
+        {
+            Form = new IndexModel.SeriesFormModel
+            {
+                Id = series.Id,
+                Title = series.Title,
+                Author = series.Author,
+                TotalProgress = 10,
+                CurrentReleasedCount = 10,
+                CurrentProgress = 4,
+                CompletionState = SeriesCompletionState.Completed,
+                Status = SeriesStatus.Reading
+            }
+        };
+
+        await pageModel.OnPostSaveAsync();
+
+        var updated = await dbContext.Series.SingleAsync();
+        Assert.Equal(SeriesStatus.Reading, updated.Status);
     }
 
     private static SeriesTrackerDbContext CreateDbContext(SqliteConnection connection)

@@ -7,8 +7,7 @@
 <div class="page-shell">
     <header class="page-header">
         <div>
-            <p class="eyebrow">Reading list</p>
-            <h1>Your series tracker</h1>
+            <h1>Series Tracker</h1>
         </div>
 
         <form method="get" class="filter-form">
@@ -17,7 +16,7 @@
                 <option value="All" selected="@(Model.StatusFilter == "All")">All</option>
                 @foreach (var status in Model.StatusOptions)
                 {
-                    <option value="@status" selected="@(Model.StatusFilter == status)">@status</option>
+                    <option value="@status" selected="@(Model.StatusFilter == status)">@status.Replace("NotStarted", "Not started").Replace("UpToDate", "Up to date")</option>
                 }
             </select>
         </form>
@@ -30,7 +29,6 @@
 
     <section class="card">
         <div class="list-toolbar">
-            <h2>Current list</h2>
             <form method="get" class="toolbar-action-form">
                 <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
                 <input type="hidden" name="ShowAddDraft" value="true" />
@@ -98,8 +96,10 @@
                         @if (Model.IsEditMode)
                         {
                             <div class="field-group">
-                                <label asp-for="Form.Status">Reading status</label>
-                                <select asp-for="Form.Status" asp-items="Html.GetEnumSelectList<Series_Tracker.Models.SeriesStatus>()"></select>
+                                <label class="checkbox-field">
+                                    <input asp-for="Form.IsDropped" type="checkbox" />
+                                    <span>Drop this series</span>
+                                </label>
                             </div>
                         }
                     </fieldset>
@@ -129,7 +129,8 @@
                     <tbody>
                         @foreach (var item in Model.SeriesItems)
                         {
-                            var rowClass = item.IsProgressComplete() ? "status-row-completed" : $"status-row-{item.Status.ToString().ToLower()}";
+                            var derivedStatus = item.GetDerivedStatus();
+                            var rowClass = $"status-row-{derivedStatus.ToString().ToLower()}";
                             var availableToReadCount = item.GetAvailableToReadCount();
 
                             <tr class="status-row @rowClass" tabindex="0" role="link" aria-label="Edit series @item.Title" data-edit-url="@Url.Page("/Index", new { editId = item.Id })">
@@ -141,13 +142,17 @@
                                 </td>
                                 <td>
                                     <div>@item.GetDashboardProgressText()</div>
-                                    @if (item.Status == Series_Tracker.Models.SeriesStatus.Dropped)
+                                    @if (derivedStatus == Series_Tracker.Models.SeriesStatus.Dropped)
                                     {
                                         <small class="progress-note">Dropped</small>
                                     }
                                     else if (availableToReadCount > 0)
                                     {
                                         <small class="progress-note">@availableToReadCount @(availableToReadCount == 1 ? "book" : "books") to read</small>
+                                    }
+                                    else if (derivedStatus == Series_Tracker.Models.SeriesStatus.NotStarted)
+                                    {
+                                        <small class="progress-note">Not started</small>
                                     }
                                     else if (item.IsUpToDate())
                                     {

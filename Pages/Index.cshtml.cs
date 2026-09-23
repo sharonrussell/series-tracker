@@ -73,7 +73,7 @@ public class IndexModel : PageModel
             {
                 Title = Form.Title.Trim(),
                 Author = Form.Author.Trim(),
-                Status = SeriesStatus.Reading,
+                Status = SeriesStatus.NotStarted,
                 CompletionState = Form.CompletionState,
                 TotalProgress = Math.Max(1, Form.TotalProgress),
                 CurrentReleasedCount = Math.Clamp(Form.CurrentReleasedCount, 0, Math.Max(1, Form.TotalProgress)),
@@ -82,10 +82,7 @@ public class IndexModel : PageModel
                 UpdatedAt = DateTime.UtcNow
             };
 
-            if (series.CompletionState == SeriesCompletionState.Completed && series.CurrentProgress == series.TotalProgress)
-            {
-                series.Status = SeriesStatus.Completed;
-            }
+            NormalizeStatus(series, Form.IsDropped || Form.Status == SeriesStatus.Dropped);
 
             _dbContext.Series.Add(series);
         }
@@ -102,19 +99,8 @@ public class IndexModel : PageModel
             series.TotalProgress = Math.Max(1, Form.TotalProgress);
             series.CurrentReleasedCount = Math.Clamp(Form.CurrentReleasedCount, 0, series.TotalProgress);
             series.CurrentProgress = Math.Clamp(Form.CurrentProgress, 0, series.CurrentReleasedCount);
-            series.Status = Form.Status;
             series.CompletionState = Form.CompletionState;
-
-            if (series.Status == SeriesStatus.Completed)
-            {
-                series.CurrentReleasedCount = series.TotalProgress;
-                series.CurrentProgress = series.TotalProgress;
-            }
-
-            if (series.CompletionState == SeriesCompletionState.Completed && series.CurrentProgress == series.TotalProgress)
-            {
-                series.Status = SeriesStatus.Completed;
-            }
+            NormalizeStatus(series, Form.IsDropped || Form.Status == SeriesStatus.Dropped);
 
             series.UpdatedAt = DateTime.UtcNow;
         }
@@ -173,7 +159,7 @@ public class IndexModel : PageModel
         {
             Title = Form.Title.Trim(),
             Author = Form.Author.Trim(),
-            Status = Form.Status,
+            Status = Form.Status == SeriesStatus.Dropped ? SeriesStatus.Dropped : SeriesStatus.NotStarted,
             CompletionState = Form.CompletionState,
             TotalProgress = Math.Max(1, Form.TotalProgress),
             CurrentReleasedCount = Math.Clamp(Form.CurrentReleasedCount, 0, Math.Max(1, Form.TotalProgress)),
@@ -182,16 +168,7 @@ public class IndexModel : PageModel
             UpdatedAt = DateTime.UtcNow
         };
 
-        if (series.Status == SeriesStatus.Completed)
-        {
-            series.CurrentReleasedCount = series.TotalProgress;
-            series.CurrentProgress = series.TotalProgress;
-        }
-
-        if (series.CompletionState == SeriesCompletionState.Completed && series.CurrentProgress == series.TotalProgress)
-        {
-            series.Status = SeriesStatus.Completed;
-        }
+        NormalizeStatus(series, series.Status == SeriesStatus.Dropped);
 
         _dbContext.Series.Add(series);
         await _dbContext.SaveChangesAsync();
@@ -214,21 +191,10 @@ public class IndexModel : PageModel
 
         if (status.HasValue)
         {
-            series.Status = status.Value;
-
-            if (status.Value == SeriesStatus.Completed && series.TotalProgress > 0)
-            {
-                series.CurrentReleasedCount = series.TotalProgress;
-                series.CurrentProgress = series.TotalProgress;
-            }
+            NormalizeStatus(series, status.Value == SeriesStatus.Dropped);
         }
 
-        if (series.CompletionState == SeriesCompletionState.Completed &&
-            series.TotalProgress > 0 &&
-            series.CurrentProgress == series.TotalProgress)
-        {
-            series.Status = SeriesStatus.Completed;
-        }
+        NormalizeStatus(series, series.Status == SeriesStatus.Dropped);
 
         series.UpdatedAt = DateTime.UtcNow;
         await _dbContext.SaveChangesAsync();
@@ -238,15 +204,33 @@ public class IndexModel : PageModel
 
     private async Task LoadSeriesAsync()
     {
-        IQueryable<SeriesItem> query = _dbContext.Series.AsNoTracking().OrderByDescending(s => s.UpdatedAt);
+        var query = _dbContext.Series.AsNoTracking().OrderByDescending(s => s.UpdatedAt);
+        var seriesItems = await query.ToListAsync();
+
+        foreach (var series in seriesItems)
+        {
+            series.Status = series.GetDerivedStatus();
+        }
 
         if (!string.Equals(StatusFilter, "All", StringComparison.OrdinalIgnoreCase) &&
             Enum.TryParse<SeriesStatus>(StatusFilter, true, out var parsedStatus))
         {
-            query = query.Where(s => s.Status == parsedStatus);
+            seriesItems = seriesItems.Where(series => series.Status == parsedStatus).ToList();
         }
 
-        SeriesItems = await query.ToListAsync();
+        SeriesItems = seriesItems;
+    }
+
+    private static void NormalizeStatus(SeriesItem series, bool isDropped)
+    {
+        if (isDropped)
+        {
+            series.Status = SeriesStatus.Dropped;
+            return;
+        }
+
+        series.Status = SeriesStatus.NotStarted;
+        series.Status = series.GetDerivedStatus();
     }
 
     private static SeriesFormModel CreateFormModel(SeriesItem series)
@@ -260,6 +244,7 @@ public class IndexModel : PageModel
             CurrentReleasedCount = series.CurrentReleasedCount,
             TotalProgress = series.TotalProgress,
             Status = series.Status,
+            IsDropped = series.Status == SeriesStatus.Dropped,
             CompletionState = series.CompletionState
         };
     }
@@ -279,6 +264,8 @@ public class IndexModel : PageModel
         public int TotalProgress { get; set; } = 1;
 
         public SeriesStatus Status { get; set; } = SeriesStatus.Reading;
+
+        public bool IsDropped { get; set; }
 
         public SeriesCompletionState CompletionState { get; set; } = SeriesCompletionState.Ongoing;
     }
