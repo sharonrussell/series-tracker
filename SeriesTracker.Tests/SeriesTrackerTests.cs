@@ -509,6 +509,63 @@ public class SeriesTrackerTests
         Assert.Equal(SeriesCompletionState.Completed, updated.CompletionState);
     }
 
+    [Fact]
+    public async Task OnGetAsync_LoadsSharedEditorFormForEditId()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync();
+        var series = new SeriesItem
+        {
+            Title = "Shared Editor Series",
+            Author = "Test Author",
+            TotalProgress = 8,
+            CurrentReleasedCount = 5,
+            CurrentProgress = 3,
+            Status = SeriesStatus.Dropped,
+            CompletionState = SeriesCompletionState.Ongoing
+        };
+        dbContext.Series.Add(series);
+        await dbContext.SaveChangesAsync();
+        var pageModel = new IndexModel(dbContext) { EditId = series.Id };
+
+        await pageModel.OnGetAsync();
+
+        Assert.True(pageModel.IsEditMode);
+        Assert.Equal(series.Id, pageModel.Form.Id);
+        Assert.Equal(SeriesStatus.Dropped, pageModel.Form.Status);
+        Assert.Equal("Shared Editor Series", pageModel.Form.Title);
+    }
+
+    [Fact]
+    public async Task OnPostSaveAsync_CreatesNewSeriesAsReading()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync();
+        var pageModel = new IndexModel(dbContext)
+        {
+            Form = new IndexModel.SeriesFormModel
+            {
+                Title = "New Shared Series",
+                Author = "Test Author",
+                TotalProgress = 10,
+                CurrentReleasedCount = 4,
+                CurrentProgress = 2,
+                Status = SeriesStatus.Dropped,
+                CompletionState = SeriesCompletionState.Ongoing
+            }
+        };
+
+        await pageModel.OnPostSaveAsync();
+
+        var created = await dbContext.Series.SingleAsync();
+        Assert.Equal(SeriesStatus.Reading, created.Status);
+        Assert.Equal(2, created.CurrentProgress);
+    }
+
     private static SeriesTrackerDbContext CreateDbContext(SqliteConnection connection)
     {
         var options = new DbContextOptionsBuilder<SeriesTrackerDbContext>().UseSqlite(connection).Options;

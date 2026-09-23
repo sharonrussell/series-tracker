@@ -23,7 +23,7 @@
         </form>
     </header>
 
-    @if (!string.IsNullOrWhiteSpace(Model.Message))
+    @if (!string.IsNullOrWhiteSpace(Model.Message) && !Model.IsEditorOpen)
     {
         <div class="alert alert-warning">@Model.Message</div>
     }
@@ -34,46 +34,82 @@
             <form method="get" class="toolbar-action-form">
                 <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
                 <input type="hidden" name="ShowAddDraft" value="true" />
-                <button type="submit" class="add-series-button" aria-label="Add a new series" aria-expanded="@Model.ShowAddDraft.ToString().ToLowerInvariant()" title="Add a new series">+</button>
+                <button type="submit" class="add-series-button" aria-label="Add a new series" aria-expanded="@Model.IsEditorOpen.ToString().ToLowerInvariant()" title="Add a new series">+</button>
             </form>
         </div>
 
-        @if (Model.ShowAddDraft)
+        @if (Model.IsEditorOpen)
         {
-            <form method="post" asp-page-handler="Add" class="inline-add-form">
-                <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
-                <input type="hidden" name="ShowAddDraft" value="true" />
-                <div class="inline-add-row">
-                    <div class="inline-cell wide-cell">
-                        <label asp-for="Form.Title">Title</label>
-                        <input asp-for="Form.Title" placeholder="Series title" />
+            <div class="editor-backdrop" data-editor-close></div>
+            <aside class="series-editor" id="series-editor" role="dialog" aria-modal="true" aria-labelledby="series-editor-title" tabindex="-1">
+                <div class="editor-header">
+                    <div>
+                        <p class="eyebrow">@(Model.IsEditMode ? "Update" : "New series")</p>
+                        <h2 id="series-editor-title">@(Model.IsEditMode ? "Edit series" : "Add a series")</h2>
                     </div>
-                    <div class="inline-cell">
-                        <label asp-for="Form.Author">Author</label>
-                        <input asp-for="Form.Author" placeholder="Author" />
-                    </div>
-                    <div class="inline-cell">
-                        <label asp-for="Form.CompletionState">Series state</label>
-                        <select asp-for="Form.CompletionState" asp-items="Html.GetEnumSelectList<Series_Tracker.Models.SeriesCompletionState>()"></select>
-                    </div>
-                    <div class="inline-cell">
-                        <label asp-for="Form.TotalProgress">Series length</label>
-                        <input asp-for="Form.TotalProgress" type="number" min="1" placeholder="Length" />
-                    </div>
-                    <div class="inline-cell">
-                        <label asp-for="Form.CurrentReleasedCount">Released so far</label>
-                        <input asp-for="Form.CurrentReleasedCount" type="number" min="0" placeholder="Released" />
-                    </div>
-                    <div class="inline-cell">
-                        <label asp-for="Form.CurrentProgress">Books read</label>
-                        <input asp-for="Form.CurrentProgress" type="number" min="0" placeholder="Read so far" />
-                    </div>
-                    <div class="inline-actions">
-                        <button type="submit" class="btn btn-sm btn-primary">Save</button>
-                        <a asp-page="/Index" asp-route-statusFilter="@Model.StatusFilter" class="btn btn-sm btn-secondary">Cancel</a>
-                    </div>
+                    <a class="editor-close" asp-page="/Index" asp-route-statusFilter="@Model.StatusFilter" aria-label="Close series editor">&times;</a>
                 </div>
-            </form>
+
+                @if (!string.IsNullOrWhiteSpace(Model.Message))
+                {
+                    <div class="alert alert-warning" role="alert">@Model.Message</div>
+                }
+
+                <form method="post" asp-page-handler="Save" class="series-form">
+                    <input type="hidden" asp-for="Form.Id" />
+                    <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
+
+                    <fieldset class="editor-section">
+                        <legend>Series details</legend>
+                        <div class="field-group">
+                            <label asp-for="Form.Title">Title</label>
+                            <input asp-for="Form.Title" placeholder="Series title" autofocus />
+                        </div>
+                        <div class="field-group">
+                            <label asp-for="Form.Author">Author</label>
+                            <input asp-for="Form.Author" placeholder="Author" />
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="editor-section">
+                        <legend>Progress</legend>
+                        <div class="editor-grid">
+                            <div class="field-group">
+                                <label asp-for="Form.TotalProgress">Series length</label>
+                                <input asp-for="Form.TotalProgress" type="number" min="1" />
+                            </div>
+                            <div class="field-group">
+                                <label asp-for="Form.CurrentReleasedCount">Released so far</label>
+                                <input asp-for="Form.CurrentReleasedCount" type="number" min="0" />
+                            </div>
+                            <div class="field-group">
+                                <label asp-for="Form.CurrentProgress">Books read</label>
+                                <input asp-for="Form.CurrentProgress" type="number" min="0" />
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="editor-section">
+                        <legend>Tracking</legend>
+                        <div class="field-group">
+                            <label asp-for="Form.CompletionState">Series state</label>
+                            <select asp-for="Form.CompletionState" asp-items="Html.GetEnumSelectList<Series_Tracker.Models.SeriesCompletionState>()"></select>
+                        </div>
+                        @if (Model.IsEditMode)
+                        {
+                            <div class="field-group">
+                                <label asp-for="Form.Status">Reading status</label>
+                                <select asp-for="Form.Status" asp-items="Html.GetEnumSelectList<Series_Tracker.Models.SeriesStatus>()"></select>
+                            </div>
+                        }
+                    </fieldset>
+
+                    <div class="editor-footer">
+                        <a asp-page="/Index" asp-route-statusFilter="@Model.StatusFilter" class="btn btn-outline">Cancel</a>
+                        <button type="submit" class="primary-button">@(Model.IsEditMode ? "Save changes" : "Add series")</button>
+                    </div>
+                </form>
+            </aside>
         }
 
         @if (!Model.SeriesItems.Any())
@@ -97,9 +133,9 @@
                             var rowClass = item.IsProgressComplete() ? "status-row-completed" : $"status-row-{item.Status.ToString().ToLower()}";
                             var availableToReadCount = item.GetAvailableToReadCount();
 
-                            <tr class="status-row @rowClass" tabindex="0" role="link" aria-label="Edit series @item.Title" data-edit-url="@Url.Page("/Series/Edit", new { id = item.Id })">
+                            <tr class="status-row @rowClass" tabindex="0" role="link" aria-label="Edit series @item.Title" data-edit-url="@Url.Page("/Index", new { editId = item.Id })">
                                 <td>
-                                    <a asp-page="/Series/Edit" asp-route-id="@item.Id" class="row-title-link" aria-label="Edit series @item.Title">@item.Title</a>
+                                    <a asp-page="/Index" asp-route-editId="@item.Id" class="row-title-link" aria-label="Edit series @item.Title">@item.Title</a>
                                 </td>
                                 <td>@item.Author</td>
                                 <td>

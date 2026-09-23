@@ -21,6 +21,9 @@ public class IndexModel : PageModel
     [BindProperty(SupportsGet = true)]
     public bool ShowAddDraft { get; set; }
 
+    [BindProperty(SupportsGet = true)]
+    public int? EditId { get; set; }
+
     [BindProperty]
     public SeriesFormModel Form { get; set; } = new();
 
@@ -30,9 +33,94 @@ public class IndexModel : PageModel
 
     public IReadOnlyList<string> StatusOptions { get; } = Enum.GetNames<SeriesStatus>();
 
+    public bool IsEditorOpen => ShowAddDraft || EditId.HasValue;
+
+    public bool IsEditMode => EditId.HasValue;
+
     public async Task OnGetAsync()
     {
         await LoadSeriesAsync();
+
+        if (EditId.HasValue)
+        {
+            var series = await _dbContext.Series.AsNoTracking().FirstOrDefaultAsync(item => item.Id == EditId.Value);
+            if (series is null)
+            {
+                EditId = null;
+                Message = "That series could not be found.";
+                return;
+            }
+
+            Form = CreateFormModel(series);
+        }
+    }
+
+    public async Task<IActionResult> OnPostSaveAsync()
+    {
+        var validationMessage = ValidateSeriesDraft(Form.Title, Form.Author, Form.TotalProgress, Form.CurrentReleasedCount, Form.CurrentProgress, Form.CompletionState);
+        if (!string.IsNullOrWhiteSpace(validationMessage))
+        {
+            Message = validationMessage;
+            ShowAddDraft = Form.Id == 0;
+            EditId = Form.Id == 0 ? null : Form.Id;
+            await LoadSeriesAsync();
+            return Page();
+        }
+
+        if (Form.Id == 0)
+        {
+            var series = new SeriesItem
+            {
+                Title = Form.Title.Trim(),
+                Author = Form.Author.Trim(),
+                Status = SeriesStatus.Reading,
+                CompletionState = Form.CompletionState,
+                TotalProgress = Math.Max(1, Form.TotalProgress),
+                CurrentReleasedCount = Math.Clamp(Form.CurrentReleasedCount, 0, Math.Max(1, Form.TotalProgress)),
+                CurrentProgress = Math.Clamp(Form.CurrentProgress, 0, Math.Clamp(Form.CurrentReleasedCount, 0, Math.Max(1, Form.TotalProgress))),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            if (series.CompletionState == SeriesCompletionState.Completed && series.CurrentProgress == series.TotalProgress)
+            {
+                series.Status = SeriesStatus.Completed;
+            }
+
+            _dbContext.Series.Add(series);
+        }
+        else
+        {
+            var series = await _dbContext.Series.FindAsync(Form.Id);
+            if (series is null)
+            {
+                return NotFound();
+            }
+
+            series.Title = Form.Title.Trim();
+            series.Author = Form.Author.Trim();
+            series.TotalProgress = Math.Max(1, Form.TotalProgress);
+            series.CurrentReleasedCount = Math.Clamp(Form.CurrentReleasedCount, 0, series.TotalProgress);
+            series.CurrentProgress = Math.Clamp(Form.CurrentProgress, 0, series.CurrentReleasedCount);
+            series.Status = Form.Status;
+            series.CompletionState = Form.CompletionState;
+
+            if (series.Status == SeriesStatus.Completed)
+            {
+                series.CurrentReleasedCount = series.TotalProgress;
+                series.CurrentProgress = series.TotalProgress;
+            }
+
+            if (series.CompletionState == SeriesCompletionState.Completed && series.CurrentProgress == series.TotalProgress)
+            {
+                series.Status = SeriesStatus.Completed;
+            }
+
+            series.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _dbContext.SaveChangesAsync();
+        return RedirectToPage(new { StatusFilter });
     }
 
     public static string? ValidateSeriesDraft(string title, string author, int totalProgress, int currentReleasedCount, int currentProgress, SeriesCompletionState completionState)
@@ -161,8 +249,25 @@ public class IndexModel : PageModel
         SeriesItems = await query.ToListAsync();
     }
 
+    private static SeriesFormModel CreateFormModel(SeriesItem series)
+    {
+        return new SeriesFormModel
+        {
+            Id = series.Id,
+            Title = series.Title,
+            Author = series.Author,
+            CurrentProgress = series.CurrentProgress,
+            CurrentReleasedCount = series.CurrentReleasedCount,
+            TotalProgress = series.TotalProgress,
+            Status = series.Status,
+            CompletionState = series.CompletionState
+        };
+    }
+
     public class SeriesFormModel
     {
+        public int Id { get; set; }
+
         public string Title { get; set; } = string.Empty;
 
         public string Author { get; set; } = string.Empty;

@@ -25,19 +25,7 @@ public class EditModel : PageModel
             return NotFound();
         }
 
-        Form = new EditFormModel
-        {
-            Id = series.Id,
-            Title = series.Title,
-            Author = series.Author,
-            CurrentProgress = series.CurrentProgress,
-            CurrentReleasedCount = series.CurrentReleasedCount,
-            TotalProgress = series.TotalProgress,
-            Status = series.Status,
-            CompletionState = series.CompletionState
-        };
-
-        return Page();
+        return RedirectToPage("/Index", new { EditId = series.Id });
     }
 
     public async Task<IActionResult> OnPostAsync()

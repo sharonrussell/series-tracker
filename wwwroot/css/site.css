@@ -105,6 +105,112 @@ h1, h2 {
   margin-bottom: 1rem;
 }
 
+body.editor-open {
+  overflow: hidden;
+}
+
+.editor-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgba(15, 23, 42, 0.38);
+  animation: editor-fade-in 0.18s ease-out;
+}
+
+.series-editor {
+  position: fixed;
+  inset: 0 0 0 auto;
+  z-index: 21;
+  width: min(100%, 34rem);
+  max-width: 34rem;
+  overflow-y: auto;
+  background: #ffffff;
+  box-shadow: -18px 0 40px rgba(15, 23, 42, 0.18);
+  padding: 2rem 2rem 0;
+  animation: editor-slide-in 0.22s ease-out;
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.editor-close {
+  color: #52607b;
+  font-size: 2rem;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.editor-close:hover,
+.editor-close:focus-visible {
+  color: #172033;
+}
+
+.series-editor .series-form {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 8rem);
+}
+
+.editor-section {
+  border: 0;
+  border-top: 1px solid #edf1f7;
+  padding: 1.25rem 0 0;
+  margin: 0 0 1.5rem;
+}
+
+.editor-section legend {
+  float: left;
+  width: 100%;
+  padding: 0;
+  margin: 0 0 1rem;
+  color: #52607b;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 1rem;
+}
+
+.editor-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  clear: both;
+}
+
+.editor-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: auto;
+  padding: 1rem 0 1.5rem;
+  border-top: 1px solid #edf1f7;
+  background: #ffffff;
+  position: sticky;
+  bottom: 0;
+}
+
+@keyframes editor-slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes editor-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .inline-add-row {
   display: grid;
   grid-template-columns: minmax(180px, 1.6fr) minmax(150px, 1.2fr) minmax(140px, 1fr) minmax(120px, 0.8fr) minmax(120px, 0.8fr) minmax(120px, 0.8fr) auto;
@@ -326,6 +432,16 @@ th {
   }
 
   .inline-add-row {
+    grid-template-columns: 1fr;
+  }
+
+  .series-editor {
+    width: 100%;
+    max-width: none;
+    padding: 1.5rem 1rem 0;
+  }
+
+  .editor-grid {
     grid-template-columns: 1fr;
   }
 }
