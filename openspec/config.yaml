@@ -2,14 +2,14 @@ schema: spec-driven
 githubCopilot:
   cloudAgent: true
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Tech stack: ASP.NET Core Razor Pages on .NET 10, Entity Framework Core, and SQLite.
+  UI: Razor pages under Pages/, with the dashboard in Pages/Index.cshtml, custom styles in wwwroot/css/site.css, and theme/drawer behavior in wwwroot/js/site.js. Keep the existing clean, responsive reading-list design and light/dark theme support.
+  Domain: SeriesItem tracks title, author, total series length, released count, and books read. Reading status is derived from the numeric progress data; Dropped is the only manual override. Do not introduce separate manual publication or completion state controls.
+  Persistence: The application uses EnsureCreated plus compatibility updates in Program.cs; do not add migrations unless explicitly requested.
+  Testing: xUnit tests live in SeriesTracker.Tests. Run `dotnet build --nologo` and `dotnet test SeriesTracker.Tests/SeriesTracker.Tests.csproj --nologo` for code changes.
+  UI changes: Refresh the local app and smoke test desktop and mobile layouts, theme toggling, editor behavior, list scrolling, and browser-console cleanliness.
+  Specs: Use the existing `series-tracker` capability. Validate changes with `openspec validate <change> --strict`; validate main specs with `openspec validate --specs --strict`.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
