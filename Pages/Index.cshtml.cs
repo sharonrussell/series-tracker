@@ -202,7 +202,7 @@ public class IndexModel : PageModel
 
     private async Task LoadSeriesAsync()
     {
-        var query = _dbContext.Series.AsNoTracking().OrderByDescending(s => s.UpdatedAt);
+        var query = _dbContext.Series.AsNoTracking().OrderByDescending(s => s.UpdatedAt).ThenByDescending(s => s.Id);
         var seriesItems = await query.ToListAsync();
 
         foreach (var series in seriesItems)
@@ -216,6 +216,12 @@ public class IndexModel : PageModel
                 .Where(series => series.Status is SeriesStatus.NotStarted or SeriesStatus.Reading or SeriesStatus.UpToDate)
                 .ToList();
         }
+        else if (string.Equals(StatusFilter, "All", StringComparison.OrdinalIgnoreCase))
+        {
+            seriesItems = seriesItems
+                .OrderBy(GetAllListPriority)
+                .ToList();
+        }
         else if (!string.Equals(StatusFilter, "All", StringComparison.OrdinalIgnoreCase) &&
             Enum.TryParse<SeriesStatus>(StatusFilter, true, out var parsedStatus))
         {
@@ -223,6 +229,18 @@ public class IndexModel : PageModel
         }
 
         SeriesItems = seriesItems;
+    }
+
+    private static int GetAllListPriority(SeriesItem series)
+    {
+        return series.Status switch
+        {
+            SeriesStatus.Completed => 3,
+            SeriesStatus.Dropped => 4,
+            SeriesStatus.UpToDate => 1,
+            _ when series.GetAvailableToReadCount() > 0 => 0,
+            _ => 2
+        };
     }
 
     private static void NormalizeStatus(SeriesItem series, bool isDropped)

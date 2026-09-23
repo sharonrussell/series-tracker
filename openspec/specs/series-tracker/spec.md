@@ -90,6 +90,33 @@ The system SHALL present each tracked series in a single clickable dashboard lis
 - **WHEN** a series has been dropped
 - **THEN** the progress cell shows the numeric progress fraction with `Dropped` displayed beneath it as a secondary note, and the row uses the dropped color
 
+### Requirement: Reading list UI is polished and responsive
+The system SHALL present the reading list, shell, controls, status rows, and editor with a clean responsive visual design that uses soft colors, clear hierarchy, and subtle reading-themed whimsy while preserving existing behavior.
+
+#### Scenario: View polished reading list
+- **WHEN** a user opens the tracker dashboard
+- **THEN** the interface uses comfortable spacing, readable typography, soft color contrast, and a clear visual hierarchy for the page heading, controls, rows, and progress notes
+
+#### Scenario: Preserve behavior during polish
+- **WHEN** the visual design is updated
+- **THEN** existing theme toggle, filtering, row navigation, editor, progress, and derived status behavior remains unchanged
+
+#### Scenario: Use restrained whimsy
+- **WHEN** whimsical visual details are added
+- **THEN** they are subtle, reading-themed, and do not reduce readability, density, or accessibility
+
+#### Scenario: Support responsive polish
+- **WHEN** a user views the app on desktop or mobile
+- **THEN** the list, controls, editor drawer, and theme toggle remain readable, aligned, and free of horizontal overflow
+
+#### Scenario: Scroll the series list
+- **WHEN** the series list exceeds its available dashboard space
+- **THEN** the series rows scroll within the list region while the filter and Add controls remain visible and usable
+
+#### Scenario: Preserve light and dark comfort
+- **WHEN** a user views either light mode or dark mode
+- **THEN** colors remain soft, readable, and not harsh on the eye across the shell, list, controls, editor, and row states
+
 ### Requirement: User can choose the application appearance theme
 The system SHALL provide an accessible appearance-theme toggle that supports light and dark themes, respects the system preference when no explicit choice exists, and persists an explicit user choice locally.
 

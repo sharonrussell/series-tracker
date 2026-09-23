@@ -6,7 +6,7 @@
 
 <div class="page-shell">
     <header class="page-header">
-        <div>
+        <div class="page-title">
             <h1>Reading List</h1>
         </div>
 
@@ -33,7 +33,7 @@
         <div class="alert alert-warning">@Model.Message</div>
     }
 
-    <section class="card">
+    <section class="card reading-list-card">
         @if (Model.IsEditorOpen)
         {
             <div class="editor-backdrop" data-editor-close></div>
@@ -101,7 +101,6 @@
                             </div>
                         }
                     </fieldset>
-
                     <div class="editor-footer">
                         <a asp-page="/Index" asp-route-statusFilter="@Model.StatusFilter" class="btn btn-outline">Cancel</a>
                         <button type="submit" class="primary-button">@(Model.IsEditMode ? "Save changes" : "Add series")</button>
