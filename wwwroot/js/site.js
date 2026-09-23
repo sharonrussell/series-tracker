@@ -69,6 +69,12 @@
         editorCloseLink?.click();
     });
 
+    document.querySelector('[data-delete-series-form]')?.addEventListener('submit', (event) => {
+        if (!window.confirm('Delete this series permanently? This cannot be undone.')) {
+            event.preventDefault();
+        }
+    });
+
     document.querySelectorAll('.status-row[data-edit-url]').forEach((row) => {
         const editUrl = row.getAttribute('data-edit-url');
         if (!editUrl) {

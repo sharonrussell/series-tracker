@@ -51,7 +51,7 @@
                     <div class="alert alert-warning" role="alert">@Model.Message</div>
                 }
 
-                <form method="post" asp-page-handler="Save" class="series-form">
+                <form method="post" asp-page-handler="Save" class="series-form" id="series-save-form">
                     <input type="hidden" asp-for="Form.Id" />
                     <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
 
@@ -101,11 +101,19 @@
                             </div>
                         }
                     </fieldset>
-                    <div class="editor-footer">
-                        <a asp-page="/Index" asp-route-statusFilter="@Model.StatusFilter" class="btn btn-outline">Cancel</a>
-                        <button type="submit" class="primary-button">@(Model.IsEditMode ? "Save changes" : "Add series")</button>
-                    </div>
                 </form>
+                    <div class="editor-footer">
+                        @if (Model.IsEditMode)
+                        {
+                            <form method="post" asp-page-handler="Delete" class="delete-series-form" data-delete-series-form>
+                                <input type="hidden" name="id" value="@Model.Form.Id" />
+                                <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
+                                <button type="submit" class="delete-series-button">Delete series</button>
+                            </form>
+                        }
+                        <a asp-page="/Index" asp-route-statusFilter="@Model.StatusFilter" class="btn btn-outline">Cancel</a>
+                        <button type="submit" form="series-save-form" class="primary-button">@(Model.IsEditMode ? "Save changes" : "Add series")</button>
+                    </div>
             </aside>
         }
 

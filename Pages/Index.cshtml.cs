@@ -107,6 +107,20 @@ public class IndexModel : PageModel
         return RedirectToPage(new { StatusFilter });
     }
 
+    public async Task<IActionResult> OnPostDeleteAsync(int id)
+    {
+        var series = await _dbContext.Series.FindAsync(id);
+        if (series is null)
+        {
+            return NotFound();
+        }
+
+        _dbContext.Series.Remove(series);
+        await _dbContext.SaveChangesAsync();
+
+        return RedirectToPage(new { StatusFilter });
+    }
+
     public static string? ValidateSeriesDraft(string title, string author, int totalProgress, int currentReleasedCount, int currentProgress, SeriesCompletionState completionState)
     {
         if (string.IsNullOrWhiteSpace(title))

@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Series_Tracker.Data;
 using Series_Tracker.Models;
@@ -604,6 +605,39 @@ public class SeriesTrackerTests
         await pageModel.OnGetAsync();
 
         Assert.Equal(["Up To Date", "Reading", "Not Started"], pageModel.SeriesItems.Select(series => series.Title).ToArray());
+    }
+
+    [Fact]
+    public async Task OnPostDeleteAsync_RemovesRequestedSeriesAndPreservesFilter()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync();
+        var series = new SeriesItem { Title = "Delete Me", Author = "Test", TotalProgress = 3, CurrentReleasedCount = 1, CurrentProgress = 0 };
+        dbContext.Series.Add(series);
+        await dbContext.SaveChangesAsync();
+        var pageModel = new IndexModel(dbContext) { StatusFilter = "Dropped" };
+
+        var result = await pageModel.OnPostDeleteAsync(series.Id);
+
+        var redirect = Assert.IsType<RedirectToPageResult>(result);
+        Assert.Equal("Dropped", redirect.RouteValues?["StatusFilter"]);
+        Assert.Empty(await dbContext.Series.ToListAsync());
+    }
+
+    [Fact]
+    public async Task OnPostDeleteAsync_ReturnsNotFound_WhenSeriesDoesNotExist()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync();
+        var pageModel = new IndexModel(dbContext);
+
+        var result = await pageModel.OnPostDeleteAsync(999);
+
+        Assert.IsType<NotFoundResult>(result);
     }
 
     [Fact]

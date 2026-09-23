@@ -91,7 +91,7 @@ The system SHALL present each tracked series in a single clickable dashboard lis
 - **THEN** the progress cell shows the numeric progress fraction with `Dropped` displayed beneath it as a secondary note, and the row uses the dropped color
 
 ### Requirement: Reading list UI is polished and responsive
-The system SHALL present the reading list, shell, controls, status rows, and editor with a clean responsive visual design that uses soft colors, clear hierarchy, and subtle reading-themed whimsy while preserving existing behavior.
+The system SHALL present the reading list, shell, controls, status rows, and editor with a clean responsive visual design that uses soft colors, clear hierarchy, subtle reading-themed whimsy, and efficient viewport use while preserving existing behavior.
 
 #### Scenario: View polished reading list
 - **WHEN** a user opens the tracker dashboard
@@ -113,12 +113,16 @@ The system SHALL present the reading list, shell, controls, status rows, and edi
 - **WHEN** the series list exceeds its available dashboard space
 - **THEN** the series rows scroll within the list region while the filter and Add controls remain visible and usable
 
+#### Scenario: Use available list viewport space
+- **WHEN** a user views the dashboard on a viewport with space below the list
+- **THEN** the list region uses the available viewport space efficiently without an unnecessarily large bottom buffer
+
 #### Scenario: Preserve light and dark comfort
 - **WHEN** a user views either light mode or dark mode
 - **THEN** colors remain soft, readable, and not harsh on the eye across the shell, list, controls, editor, and row states
 
 ### Requirement: User can choose the application appearance theme
-The system SHALL provide an accessible appearance-theme toggle that supports light and dark themes, respects the system preference when no explicit choice exists, and persists an explicit user choice locally.
+The system SHALL provide an accessible appearance-theme toggle that supports a soft light theme and a muted midnight-blue dark theme, respects the system preference when no explicit choice exists, and persists an explicit user choice locally.
 
 #### Scenario: Initial theme follows system preference
 - **WHEN** a user opens the application without a saved theme choice
@@ -135,6 +139,10 @@ The system SHALL provide an accessible appearance-theme toggle that supports lig
 #### Scenario: Theme covers the application surface
 - **WHEN** a user views the application in dark mode
 - **THEN** the shell, dashboard, editor drawer, controls, table rows, progress notes, overlays, and text use readable dark-theme colors with sufficient contrast
+
+#### Scenario: Use a midnight-blue dark palette
+- **WHEN** a user views the application in dark mode
+- **THEN** the application uses muted midnight-blue backgrounds and surfaces, blue accents, soft blue-white text, and distinct but restrained reading, completed, and dropped row states
 
 #### Scenario: Preserve theme accessibility
 - **WHEN** a user navigates the theme toggle and dashboard controls by keyboard
@@ -189,6 +197,33 @@ The system SHALL provide one responsive editor surface over the dashboard for cr
 #### Scenario: Validate shared editor input
 - **WHEN** a user submits invalid title, author, series length, released count, or books-read values from either mode
 - **THEN** the editor displays the relevant validation message without losing the entered values
+
+### Requirement: User can permanently delete a series
+The system SHALL allow a user to permanently remove an existing series from the shared editor only after explicit confirmation.
+
+#### Scenario: Show deletion action while editing
+- **WHEN** a user opens the shared editor for an existing series
+- **THEN** the editor provides a clearly identified delete action
+
+#### Scenario: Confirm deletion
+- **WHEN** a user chooses the delete action
+- **THEN** the system requires explicit confirmation before removing the series
+
+#### Scenario: Delete confirmed series
+- **WHEN** a user confirms deletion of an existing series
+- **THEN** the system permanently removes that series record, closes the editor, and returns to the active dashboard filter without the deleted row
+
+#### Scenario: Cancel deletion
+- **WHEN** a user dismisses or cancels the deletion confirmation
+- **THEN** the system keeps the series record unchanged and leaves the editor available
+
+#### Scenario: Do not expose deletion while creating
+- **WHEN** a user opens the shared editor in create mode
+- **THEN** the system does not show a delete action
+
+#### Scenario: Handle missing series deletion
+- **WHEN** a user submits a deletion request for a series that no longer exists
+- **THEN** the system does not delete another record and returns a not-found response
 
 ### Requirement: Dashboard UI changes are refreshed and smoke tested
 Any dashboard UI change SHALL be verified against a freshly refreshed browser view before it is considered complete.
