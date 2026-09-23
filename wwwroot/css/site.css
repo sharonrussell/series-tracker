@@ -116,6 +116,12 @@ body {
   margin-bottom: 1.5rem;
 }
 
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .eyebrow {
   margin: 0;
   text-transform: uppercase;
@@ -591,6 +597,12 @@ th {
   }
 
   .filter-form {
+    margin-top: 1rem;
+  }
+
+  .page-actions {
+    align-items: flex-start;
+    justify-content: space-between;
     margin-top: 1rem;
   }
 
