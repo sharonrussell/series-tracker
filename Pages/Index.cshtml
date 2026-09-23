@@ -122,8 +122,7 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Title</th>
-                            <th>Author</th>
+                            <th>Series</th>
                             <th>Progress</th>
                         </tr>
                     </thead>
@@ -135,9 +134,11 @@
 
                             <tr class="status-row @rowClass" tabindex="0" role="link" aria-label="Edit series @item.Title" data-edit-url="@Url.Page("/Index", new { editId = item.Id })">
                                 <td>
-                                    <a asp-page="/Index" asp-route-editId="@item.Id" class="row-title-link" aria-label="Edit series @item.Title">@item.Title</a>
+                                    <a asp-page="/Index" asp-route-editId="@item.Id" class="row-title-link" aria-label="Edit series @item.Title">
+                                        <span class="series-title">@item.Title</span>
+                                        <span class="series-author">@item.Author</span>
+                                    </a>
                                 </td>
-                                <td>@item.Author</td>
                                 <td>
                                     <div>@item.GetDashboardProgressText()</div>
                                     @if (item.Status == Series_Tracker.Models.SeriesStatus.Dropped)

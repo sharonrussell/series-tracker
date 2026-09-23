@@ -1,4 +1,29 @@
 ﻿document.addEventListener('DOMContentLoaded', () => {
+    const themeToggle = document.querySelector('[data-theme-toggle]');
+    const themeIcon = document.querySelector('[data-theme-icon]');
+    const themeLabel = document.querySelector('[data-theme-label]');
+
+    const updateThemeToggle = () => {
+        const isDark = document.documentElement.dataset.theme === 'dark';
+        themeToggle?.setAttribute('aria-label', isDark ? 'Switch to light theme' : 'Switch to dark theme');
+        themeToggle?.setAttribute('aria-pressed', isDark.toString());
+        if (themeIcon) {
+            themeIcon.textContent = isDark ? '\u263c' : '\u263e';
+        }
+        if (themeLabel) {
+            themeLabel.textContent = isDark ? 'Light theme' : 'Dark theme';
+        }
+    };
+
+    themeToggle?.addEventListener('click', () => {
+        const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+        document.documentElement.dataset.theme = nextTheme;
+        localStorage.setItem('series-tracker-theme', nextTheme);
+        updateThemeToggle();
+    });
+
+    updateThemeToggle();
+
     const editor = document.querySelector('.series-editor');
     const editorCloseLink = document.querySelector('.editor-close');
 
