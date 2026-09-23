@@ -23,6 +23,7 @@
   --shadow: rgba(44, 57, 47, 0.1);
   --overlay: rgba(29, 37, 31, 0.42);
   --row-reading: #fff8e9;
+  --row-uptodate: #dcecff;
   --row-completed: #edf7ee;
   --row-dropped: #fff0f0;
   --note: #87602d;
@@ -54,6 +55,7 @@
   --shadow: rgba(0, 0, 0, 0.26);
   --overlay: rgba(9, 14, 26, 0.72);
   --row-reading: #403824;
+  --row-uptodate: #254c7a;
   --row-completed: #1f3d3b;
   --row-dropped: #432c3c;
   --note: #f1ca7d;
@@ -456,7 +458,7 @@ th {
 }
 
 .status-row-uptodate {
-  background-color: var(--row-reading);
+  background-color: var(--row-uptodate);
 }
 
 .status-row-completed {

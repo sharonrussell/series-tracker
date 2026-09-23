@@ -76,7 +76,7 @@ The system SHALL present each tracked series in a single clickable dashboard lis
 
 #### Scenario: Color rows by reading status
 - **WHEN** a user views the dashboard list
-- **THEN** completed series rows are green, reading series rows are amber, not started series rows are muted blue-gray, and dropped series rows are red
+- **THEN** reading series rows are amber, up-to-date series rows are cool blue, not started series rows are muted blue-gray, completed series rows are green, and dropped series rows are red
 
 #### Scenario: Indicate reading availability
 - **WHEN** a series has released books the user has not read yet
