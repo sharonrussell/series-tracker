@@ -1,0 +1,76 @@
+name: Application Quality
+
+on:
+  pull_request:
+    paths:
+      - "**/*.cs"
+      - "**/*.cshtml"
+      - "**/*.csproj"
+      - "**/*.props"
+      - "**/*.targets"
+      - "Pages/**"
+      - "Models/**"
+      - "Data/**"
+      - "Properties/**"
+      - "wwwroot/**"
+      - "appsettings*.json"
+      - ".editorconfig"
+      - "global.json"
+      - "openspec/**"
+      - ".github/workflows/application-quality.yml"
+  push:
+    paths:
+      - "**/*.cs"
+      - "**/*.cshtml"
+      - "**/*.csproj"
+      - "**/*.props"
+      - "**/*.targets"
+      - "Pages/**"
+      - "Models/**"
+      - "Data/**"
+      - "Properties/**"
+      - "wwwroot/**"
+      - "appsettings*.json"
+      - ".editorconfig"
+      - "global.json"
+      - "openspec/**"
+      - ".github/workflows/application-quality.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install OpenSpec
+        run: npm install -g @fission-ai/openspec
+
+      - name: Restore
+        run: dotnet restore SeriesTracker.Tests/SeriesTracker.Tests.csproj
+
+      - name: Build
+        run: dotnet build SeriesTracker.Tests/SeriesTracker.Tests.csproj --configuration Release --no-restore --nologo
+
+      - name: Test
+        run: dotnet test SeriesTracker.Tests/SeriesTracker.Tests.csproj --configuration Release --no-build --nologo
+
+      - name: Verify formatting
+        run: dotnet format --verify-no-changes --no-restore
+
+      - name: Validate specifications
+        run: openspec validate --specs --strict

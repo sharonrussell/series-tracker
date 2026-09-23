@@ -20,6 +20,17 @@ The development profile serves the app at `http://localhost:5293`.
 dotnet test SeriesTracker.Tests/SeriesTracker.Tests.csproj --nologo
 ```
 
+## Quality Checks
+
+Run the same checks enforced by the application quality workflow before opening a pull request:
+
+```bash
+dotnet format --verify-no-changes --no-restore
+dotnet build --nologo
+dotnet test SeriesTracker.Tests/SeriesTracker.Tests.csproj --nologo
+openspec validate --specs --strict
+```
+
 ## How It Works
 
 - Use the Add button to open the shared series editor.
