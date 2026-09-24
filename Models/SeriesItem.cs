@@ -19,67 +19,59 @@ public class SeriesItem
 {
     public int Id { get; set; }
 
+    public ICollection<SeriesTitle> Titles { get; set; } = new List<SeriesTitle>();
+
     public string Title { get; set; } = string.Empty;
 
     public string Author { get; set; } = string.Empty;
 
-    public int CurrentProgress { get; set; }
+    public int PlannedLength { get; set; } = 1;
 
-    public int CurrentReleasedCount { get; set; }
-
-    public int TotalProgress { get; set; }
-
-    public SeriesStatus Status { get; set; } = SeriesStatus.Reading;
-
-    public SeriesCompletionState CompletionState { get; set; } = SeriesCompletionState.Ongoing;
+    public bool IsDropped { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-    public int GetProgressPercent()
+    public int GetKnownTitleCount()
     {
-        if (TotalProgress <= 0)
-        {
-            return 0;
-        }
-
-        return (int)Math.Round((double)CurrentProgress / TotalProgress * 100);
+        return Titles.Count;
     }
 
-    public string GetProgressFraction()
+    public int GetReleasedCount()
     {
-        if (TotalProgress <= 0)
-        {
-            return "0/0";
-        }
-
-        return $"{CurrentProgress}/{TotalProgress}";
+        return Titles.Count(title => title.State is SeriesTitleState.Released or SeriesTitleState.Read);
     }
 
-    public string GetDashboardProgressText()
+    public int GetReadCount()
     {
-        return GetProgressFraction();
+        return Titles.Count(title => title.State == SeriesTitleState.Read);
+    }
+
+    public int GetUnannouncedCount()
+    {
+        return Math.Max(0, PlannedLength - GetKnownTitleCount());
     }
 
     public SeriesStatus GetDerivedStatus()
     {
-        if (Status == SeriesStatus.Dropped)
+        if (IsDropped)
         {
             return SeriesStatus.Dropped;
         }
 
-        if (CurrentProgress <= 0)
+        var readCount = GetReadCount();
+        if (readCount == 0)
         {
             return SeriesStatus.NotStarted;
         }
 
-        if (TotalProgress > 0 && CurrentProgress >= TotalProgress && GetDerivedCompletionState() == SeriesCompletionState.Completed)
+        if (PlannedLength > 0 && readCount == PlannedLength)
         {
             return SeriesStatus.Completed;
         }
 
-        if (CurrentReleasedCount > 0 && CurrentProgress >= CurrentReleasedCount && CurrentReleasedCount < TotalProgress)
+        if (Titles.All(title => title.State != SeriesTitleState.Released))
         {
             return SeriesStatus.UpToDate;
         }
@@ -87,28 +79,53 @@ public class SeriesItem
         return SeriesStatus.Reading;
     }
 
-    public int GetAvailableToReadCount()
-    {
-        return Math.Max(0, CurrentReleasedCount - CurrentProgress);
-    }
-
-    public bool IsUpToDate()
-    {
-        return GetAvailableToReadCount() == 0 && CurrentReleasedCount < TotalProgress;
-    }
-
-    public bool IsProgressComplete()
-    {
-        return TotalProgress > 0 && CurrentProgress >= TotalProgress;
-    }
-
     public SeriesCompletionState GetDerivedCompletionState()
     {
-        return TotalProgress > 0 && CurrentReleasedCount >= TotalProgress ? SeriesCompletionState.Completed : SeriesCompletionState.Ongoing;
+        return PlannedLength > 0 && GetReleasedCount() == PlannedLength
+            ? SeriesCompletionState.Completed
+            : SeriesCompletionState.Ongoing;
     }
 
-    public SeriesCompletionState GetDisplayCompletionState()
+    public string GetDashboardProgressText()
     {
-        return GetDerivedCompletionState();
+        return $"{GetReadCount()} / {PlannedLength} read";
+    }
+
+    public string GetDashboardSecondaryText()
+    {
+        if (IsDropped)
+        {
+            return "Dropped";
+        }
+
+        var nextReleased = Titles
+            .Where(title => title.State == SeriesTitleState.Released)
+            .OrderBy(title => title.Position)
+            .FirstOrDefault();
+        if (nextReleased is not null)
+        {
+            return $"Next: {nextReleased.Title}";
+        }
+
+        var nextUpcoming = Titles
+            .Where(title => title.State == SeriesTitleState.Upcoming)
+            .OrderBy(title => title.Position)
+            .FirstOrDefault();
+        if (nextUpcoming is not null)
+        {
+            return $"Upcoming: {nextUpcoming.Title}";
+        }
+
+        if (GetDerivedStatus() == SeriesStatus.Completed)
+        {
+            return "Completed";
+        }
+
+        if (Titles.Count == 0)
+        {
+            return "No titles announced";
+        }
+
+        return "Up to date";
     }
 }

@@ -1,2 +1,7 @@
 @page "{id:int}"
 @model Series_Tracker.Pages.Series.EditModel
+@{
+	ViewData["Title"] = "Edit series";
+}
+
+<partial name="_SeriesForm" model="Model" />

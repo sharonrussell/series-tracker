@@ -1,0 +1,140 @@
+@model Series_Tracker.Pages.Series.SeriesEditorPageModel
+@using Series_Tracker.Models
+@{
+    var knownCount = Model.Form.Titles.Count;
+    var releasedCount = Model.Form.Titles.Count(title => title.State is SeriesTitleState.Released or SeriesTitleState.Read);
+    var readCount = Model.Form.Titles.Count(title => title.State == SeriesTitleState.Read);
+    var unannouncedCount = Math.Max(0, Model.Form.PlannedLength - knownCount);
+}
+
+<div class="editor-page-shell">
+    <header class="editor-page-header">
+        <a asp-page="/Index" class="back-link">&larr; Reading list</a>
+        <p class="eyebrow">@(Model.IsEditMode ? "Update series" : "New series")</p>
+        <h1>@(Model.IsEditMode ? "Edit series" : "Add a series")</h1>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(Model.Message))
+    {
+        <div class="alert alert-warning" role="alert">@Model.Message</div>
+    }
+
+    <form method="post" class="series-form-page" id="series-save-form" data-series-form>
+        <input type="hidden" asp-for="Form.Id" />
+
+        <section class="form-section" aria-labelledby="series-details-heading">
+            <div class="section-heading">
+                <p class="eyebrow">Series details</p>
+                <h2 id="series-details-heading">The essentials</h2>
+            </div>
+            <div class="details-grid">
+                <div class="field-group field-wide">
+                    <label asp-for="Form.Title">Series name</label>
+                    <input asp-for="Form.Title" placeholder="e.g. The Expanse" autofocus />
+                </div>
+                <div class="field-group">
+                    <label asp-for="Form.Author">Author</label>
+                    <input asp-for="Form.Author" placeholder="Author" />
+                </div>
+                <div class="field-group planned-field">
+                    <label asp-for="Form.PlannedLength">Planned length</label>
+                    <input asp-for="Form.PlannedLength" type="number" min="1" data-planned-length />
+                </div>
+            </div>
+            @if (Model.IsEditMode)
+            {
+                <label class="checkbox-field dropped-control">
+                    <input asp-for="Form.IsDropped" type="checkbox" />
+                    <span>Drop this series</span>
+                </label>
+            }
+        </section>
+
+        <section class="form-section titles-section" aria-labelledby="known-titles-heading">
+            <div class="section-heading titles-heading-row">
+                <div>
+                    <p class="eyebrow">Reading order</p>
+                    <h2 id="known-titles-heading">Known titles</h2>
+                </div>
+                <button type="button" class="btn btn-outline add-title-button" data-add-title>+ Add title</button>
+            </div>
+
+            <div class="count-summary" aria-live="polite">
+                <span><strong data-count-planned>@Model.Form.PlannedLength</strong> planned</span>
+                <span><strong data-count-known>@knownCount</strong> known</span>
+                <span><strong data-count-unannounced>@unannouncedCount</strong> unannounced</span>
+                <span><strong data-count-released>@releasedCount</strong> released</span>
+                <span><strong data-count-read>@readCount</strong> read</span>
+            </div>
+
+            <div class="title-list" data-title-list>
+                @for (var index = 0; index < Model.Form.Titles.Count; index++)
+                {
+                    var title = Model.Form.Titles[index];
+                    <div class="title-row" data-title-row>
+                        <input type="hidden" name="Form.Titles.Index" value="@index" data-index-token />
+                        <input type="hidden" name="Form.Titles[@index].Id" value="@title.Id" data-field="Id" />
+                        <span class="title-position" data-title-position>@(index + 1)</span>
+                        <div class="title-name-field">
+                            <label class="visually-hidden" for="title-@index" data-title-label>Title @(index + 1)</label>
+                            <input id="title-@index" name="Form.Titles[@index].Title" value="@title.Title" placeholder="Title name" data-field="Title" />
+                        </div>
+                        <fieldset class="state-control">
+                            <legend class="visually-hidden">Status for title @(index + 1)</legend>
+                            @foreach (var state in Enum.GetValues<SeriesTitleState>())
+                            {
+                                var stateId = $"title-{index}-state-{state.ToString().ToLowerInvariant()}";
+                                <input id="@stateId" type="radio" name="Form.Titles[@index].State" value="@state" checked="@(title.State == state)" data-field="State" />
+                                <label for="@stateId">@state</label>
+                            }
+                        </fieldset>
+                        <div class="title-actions">
+                            <button type="button" class="icon-button" data-move-up aria-label="Move title up" title="Move title up" disabled="@(index == 0)">&uarr;</button>
+                            <button type="button" class="icon-button" data-move-down aria-label="Move title down" title="Move title down" disabled="@(index == Model.Form.Titles.Count - 1)">&darr;</button>
+                            <button type="button" class="icon-button remove-title-button" data-remove-title aria-label="Remove title" title="Remove title">&times;</button>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <p class="empty-titles @(knownCount > 0 ? "is-hidden" : string.Empty)" data-empty-titles>Add known titles now, or save the series and return when they are announced.</p>
+        </section>
+    </form>
+
+    <template data-title-template>
+        <div class="title-row" data-title-row>
+            <input type="hidden" name="Form.Titles.Index" value="__index__" data-index-token />
+            <input type="hidden" name="Form.Titles[__index__].Id" value="0" data-field="Id" />
+            <span class="title-position" data-title-position>__position__</span>
+            <div class="title-name-field">
+                <label class="visually-hidden" for="title-__index__" data-title-label>Title __position__</label>
+                <input id="title-__index__" name="Form.Titles[__index__].Title" placeholder="Title name" data-field="Title" />
+            </div>
+            <fieldset class="state-control">
+                <legend class="visually-hidden">Status for title __position__</legend>
+                <input id="title-__index__-state-upcoming" type="radio" name="Form.Titles[__index__].State" value="Upcoming" checked data-field="State" />
+                <label for="title-__index__-state-upcoming">Upcoming</label>
+                <input id="title-__index__-state-released" type="radio" name="Form.Titles[__index__].State" value="Released" data-field="State" />
+                <label for="title-__index__-state-released">Released</label>
+                <input id="title-__index__-state-read" type="radio" name="Form.Titles[__index__].State" value="Read" data-field="State" />
+                <label for="title-__index__-state-read">Read</label>
+            </fieldset>
+            <div class="title-actions">
+                <button type="button" class="icon-button" data-move-up aria-label="Move title up" title="Move title up">&uarr;</button>
+                <button type="button" class="icon-button" data-move-down aria-label="Move title down" title="Move title down">&darr;</button>
+                <button type="button" class="icon-button remove-title-button" data-remove-title aria-label="Remove title" title="Remove title">&times;</button>
+            </div>
+        </div>
+    </template>
+
+    <div class="editor-page-footer">
+        @if (Model.IsEditMode)
+        {
+            <form method="post" asp-page-handler="Delete" asp-route-id="@Model.Form.Id" data-delete-series-form class="delete-series-form">
+                <button type="submit" class="delete-series-button">Delete series</button>
+            </form>
+        }
+        <a asp-page="/Index" class="btn btn-outline">Cancel</a>
+        <button type="submit" form="series-save-form" class="primary-button">@(Model.IsEditMode ? "Save changes" : "Add series")</button>
+    </div>
+</div>

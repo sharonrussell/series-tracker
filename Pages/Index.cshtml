@@ -15,108 +15,17 @@
                 <label for="statusFilter">Filter</label>
                 <select id="statusFilter" name="StatusFilter" onchange="this.form.submit()">
                     <option value="All" selected="@(Model.StatusFilter == "All")">All</option>
-                    <option value="Reading" selected="@(Model.StatusFilter == "Reading")">Reading</option>
+                    <option value="To read" selected="@(Model.StatusFilter == "To read")">To read</option>
+                    <option value="Up to date" selected="@(Model.StatusFilter == "Up to date")">Up to date</option>
                     <option value="Completed" selected="@(Model.StatusFilter == "Completed")">Completed</option>
                     <option value="Dropped" selected="@(Model.StatusFilter == "Dropped")">Dropped</option>
                 </select>
             </form>
-            <form method="get" class="toolbar-action-form">
-                <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
-                <input type="hidden" name="ShowAddDraft" value="true" />
-                <button type="submit" class="add-series-button" aria-label="Add a new series" aria-expanded="@Model.IsEditorOpen.ToString().ToLowerInvariant()" title="Add a new series">+</button>
-            </form>
+            <a asp-page="/Series/Create" class="add-series-button" aria-label="Add a new series" title="Add a new series">+</a>
         </div>
     </header>
 
-    @if (!string.IsNullOrWhiteSpace(Model.Message) && !Model.IsEditorOpen)
-    {
-        <div class="alert alert-warning">@Model.Message</div>
-    }
-
     <section class="card reading-list-card">
-        @if (Model.IsEditorOpen)
-        {
-            <div class="editor-backdrop" data-editor-close></div>
-            <aside class="series-editor" id="series-editor" role="dialog" aria-modal="true" aria-labelledby="series-editor-title" tabindex="-1">
-                <div class="editor-header">
-                    <div>
-                        <p class="eyebrow">@(Model.IsEditMode ? "Update" : "New series")</p>
-                        <h2 id="series-editor-title">@(Model.IsEditMode ? "Edit series" : "Add a series")</h2>
-                    </div>
-                    <a class="editor-close" asp-page="/Index" asp-route-statusFilter="@Model.StatusFilter" aria-label="Close series editor">&times;</a>
-                </div>
-
-                @if (!string.IsNullOrWhiteSpace(Model.Message))
-                {
-                    <div class="alert alert-warning" role="alert">@Model.Message</div>
-                }
-
-                <form method="post" asp-page-handler="Save" class="series-form" id="series-save-form">
-                    <input type="hidden" asp-for="Form.Id" />
-                    <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
-
-                    <fieldset class="editor-section">
-                        <legend>Series details</legend>
-                        <div class="field-group">
-                            <label asp-for="Form.Title">Title</label>
-                            <input asp-for="Form.Title" placeholder="Series title" autofocus />
-                        </div>
-                        <div class="field-group">
-                            <label asp-for="Form.Author">Author</label>
-                            <input asp-for="Form.Author" placeholder="Author" />
-                        </div>
-                    </fieldset>
-
-                    <fieldset class="editor-section">
-                        <legend>Progress</legend>
-                        <div class="editor-grid">
-                            <div class="field-group">
-                                <label asp-for="Form.TotalProgress">Series length</label>
-                                <input asp-for="Form.TotalProgress" type="number" min="1" />
-                            </div>
-                            <div class="field-group">
-                                <label asp-for="Form.CurrentReleasedCount">Released so far</label>
-                                <input asp-for="Form.CurrentReleasedCount" type="number" min="0" />
-                            </div>
-                            <div class="field-group">
-                                <label asp-for="Form.CurrentProgress">Books read</label>
-                                <input asp-for="Form.CurrentProgress" type="number" min="0" />
-                            </div>
-                        </div>
-                    </fieldset>
-
-                    <fieldset class="editor-section">
-                        <legend>Tracking</legend>
-                        <p class="derived-state-note">
-                            Publication status: <strong>@(Model.Form.CurrentReleasedCount >= Model.Form.TotalProgress ? "Fully released" : "Ongoing")</strong>
-                            <span>Derived from released so far and series length.</span>
-                        </p>
-                        @if (Model.IsEditMode)
-                        {
-                            <div class="field-group">
-                                <label class="checkbox-field">
-                                    <input asp-for="Form.IsDropped" type="checkbox" />
-                                    <span>Drop this series</span>
-                                </label>
-                            </div>
-                        }
-                    </fieldset>
-                </form>
-                    <div class="editor-footer">
-                        @if (Model.IsEditMode)
-                        {
-                            <form method="post" asp-page-handler="Delete" class="delete-series-form" data-delete-series-form>
-                                <input type="hidden" name="id" value="@Model.Form.Id" />
-                                <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
-                                <button type="submit" class="delete-series-button">Delete series</button>
-                            </form>
-                        }
-                        <a asp-page="/Index" asp-route-statusFilter="@Model.StatusFilter" class="btn btn-outline">Cancel</a>
-                        <button type="submit" form="series-save-form" class="primary-button">@(Model.IsEditMode ? "Save changes" : "Add series")</button>
-                    </div>
-            </aside>
-        }
-
         @if (!Model.SeriesItems.Any())
         {
             <p class="empty-state">No series match the current filter.</p>
@@ -128,7 +37,7 @@
                     <thead>
                         <tr>
                             <th>Series</th>
-                            <th>Progress</th>
+                            <th class="dashboard-progress-heading">Progress</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -136,33 +45,17 @@
                         {
                             var derivedStatus = item.GetDerivedStatus();
                             var rowClass = $"status-row-{derivedStatus.ToString().ToLower()}";
-                            var availableToReadCount = item.GetAvailableToReadCount();
 
-                            <tr class="status-row @rowClass" tabindex="0" role="link" aria-label="Edit series @item.Title" data-edit-url="@Url.Page("/Index", new { editId = item.Id })">
+                            <tr class="status-row @rowClass" tabindex="0" role="link" aria-label="Edit series @item.Title" data-edit-url="@Url.Page("/Series/Edit", new { id = item.Id })">
                                 <td>
-                                    <a asp-page="/Index" asp-route-editId="@item.Id" class="row-title-link" aria-label="Edit series @item.Title">
+                                    <a asp-page="/Series/Edit" asp-route-id="@item.Id" class="row-title-link" aria-label="Edit series @item.Title">
                                         <span class="series-title">@item.Title</span>
                                         <span class="series-author">@item.Author</span>
                                     </a>
                                 </td>
-                                <td>
-                                    <div>@item.GetDashboardProgressText()</div>
-                                    @if (derivedStatus == Series_Tracker.Models.SeriesStatus.Dropped)
-                                    {
-                                        <small class="progress-note">Dropped</small>
-                                    }
-                                    else if (availableToReadCount > 0)
-                                    {
-                                        <small class="progress-note">@availableToReadCount @(availableToReadCount == 1 ? "book" : "books") to read</small>
-                                    }
-                                    else if (derivedStatus == Series_Tracker.Models.SeriesStatus.NotStarted)
-                                    {
-                                        <small class="progress-note">Not started</small>
-                                    }
-                                    else if (item.IsUpToDate())
-                                    {
-                                        <small class="progress-note">Up to date</small>
-                                    }
+                                <td class="dashboard-progress">
+                                    <div class="progress-value">@item.GetDashboardProgressText()</div>
+                                    <small class="progress-note">@item.GetDashboardSecondaryText()</small>
                                 </td>
                             </tr>
                         }

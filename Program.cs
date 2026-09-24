@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using System.Data;
 using Series_Tracker.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,8 +12,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<SeriesTrackerDbContext>();
-    await dbContext.Database.EnsureCreatedAsync();
-    await EnsureSeriesMetadataColumnsAsync(dbContext);
+    await DatabaseInitializer.InitializeAsync(dbContext);
 }
 
 if (!app.Environment.IsDevelopment())
@@ -31,45 +29,3 @@ app.MapRazorPages()
    .WithStaticAssets();
 
 app.Run();
-
-static async Task EnsureSeriesMetadataColumnsAsync(SeriesTrackerDbContext dbContext)
-{
-    var connection = dbContext.Database.GetDbConnection();
-    if (connection.State != ConnectionState.Open)
-    {
-        await connection.OpenAsync();
-    }
-
-    var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-    await using (var command = connection.CreateCommand())
-    {
-        command.CommandText = "PRAGMA table_info('Series');";
-        await using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
-        {
-            columns.Add(reader.GetString(1));
-        }
-    }
-
-    if (!columns.Contains("Author"))
-    {
-        await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE \"Series\" ADD COLUMN \"Author\" TEXT NOT NULL DEFAULT '';");
-    }
-
-    if (!columns.Contains("CompletionState"))
-    {
-        await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE \"Series\" ADD COLUMN \"CompletionState\" TEXT NOT NULL DEFAULT 'Ongoing';");
-    }
-
-    if (!columns.Contains("CurrentReleasedCount"))
-    {
-        await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE \"Series\" ADD COLUMN \"CurrentReleasedCount\" INTEGER NOT NULL DEFAULT 0;");
-    }
-
-    await dbContext.Database.ExecuteSqlRawAsync("UPDATE \"Series\" SET \"Status\" = 'Reading' WHERE \"Status\" IN ('Active', 'Ongoing');");
-    await dbContext.Database.ExecuteSqlRawAsync("UPDATE \"Series\" SET \"Status\" = 'Dropped' WHERE \"Status\" = 'Archived';");
-    await dbContext.Database.ExecuteSqlRawAsync("UPDATE \"Series\" SET \"CurrentReleasedCount\" = \"TotalProgress\" WHERE \"CompletionState\" = 'Completed' AND \"CurrentReleasedCount\" < \"TotalProgress\";");
-    await dbContext.Database.ExecuteSqlRawAsync("UPDATE \"Series\" SET \"CurrentReleasedCount\" = \"CurrentProgress\" WHERE \"CurrentReleasedCount\" < \"CurrentProgress\";");
-    await dbContext.Database.ExecuteSqlRawAsync("UPDATE \"Series\" SET \"CurrentReleasedCount\" = \"TotalProgress\" WHERE \"CurrentReleasedCount\" > \"TotalProgress\";");
-    await dbContext.Database.ExecuteSqlRawAsync("UPDATE \"Series\" SET \"CurrentProgress\" = \"CurrentReleasedCount\" WHERE \"CurrentProgress\" > \"CurrentReleasedCount\";");
-}

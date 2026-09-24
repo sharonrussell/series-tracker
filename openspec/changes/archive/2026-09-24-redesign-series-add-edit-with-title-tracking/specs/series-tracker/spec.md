@@ -1,9 +1,65 @@
-# series-tracker Specification
+# Spec Delta
 
-## Purpose
-The series tracker lets a user maintain an up-to-date personal list of series they are following, track progress across each title, and move series through reading, completed, or dropped states without needing a separate tracking tool.
+## ADDED Requirements
 
-## Requirements
+### Requirement: User can manage ordered titles within a series
+The system SHALL allow a user to add, rename, remove, and reorder known titles within a series, and SHALL assign each known title exactly one state: Upcoming, Released, or Read.
+
+#### Scenario: Add a known title
+- **WHEN** a user adds a non-empty title while creating or editing a series
+- **THEN** the system appends it to the ordered title list and includes it in the known-title count
+
+#### Scenario: Change title state
+- **WHEN** a user selects Upcoming, Released, or Read for a known title
+- **THEN** the system stores that single state without exposing an invalid read-but-unreleased combination
+
+#### Scenario: Reorder known titles
+- **WHEN** a user moves a known title to a different series position
+- **THEN** the system preserves the new order for subsequent editor and next-title views
+
+#### Scenario: Remove a known title
+- **WHEN** a user removes a title before saving the series
+- **THEN** the title is excluded from the saved ordered list and all derived counts
+
+#### Scenario: Reject blank known title
+- **WHEN** a title row is present with no title text
+- **THEN** the system rejects the draft and identifies the blank title row
+
+### Requirement: User can see the next title in a series
+The system SHALL derive one concise next-title message from ordered known titles and display it as the dashboard row's secondary status line.
+
+#### Scenario: Show next released unread title
+- **WHEN** one or more known titles are Released and unread
+- **THEN** the dashboard shows `Next: <title>` for the earliest such title in series order
+
+#### Scenario: Show next upcoming title
+- **WHEN** no released unread title exists and a known title is Upcoming
+- **THEN** the dashboard shows `Upcoming: <title>` for the earliest upcoming title in series order
+
+#### Scenario: Show up-to-date fallback
+- **WHEN** all known released titles are Read, at least one planned title remains unannounced, and no known title is Upcoming
+- **THEN** the dashboard shows `Up to date`
+
+#### Scenario: Show completed fallback
+- **WHEN** every planned title is known and Read
+- **THEN** the dashboard shows `Completed`
+
+#### Scenario: Show no-announcement fallback
+- **WHEN** the series has no known titles
+- **THEN** the dashboard shows `No titles announced`
+
+### Requirement: Application data adopts title-based tracking
+The system SHALL initialize the title-based storage model without retaining aggregate-only series records from the previous schema.
+
+#### Scenario: Start with the previous aggregate schema
+- **WHEN** the application first starts after the title-tracking update against an existing aggregate-only database
+- **THEN** it resets tracker data, creates the title-based schema, and starts with an empty series list
+
+#### Scenario: Start again after schema adoption
+- **WHEN** the application starts against an already compatible title-based database
+- **THEN** it retains existing series and title records
+
+## MODIFIED Requirements
 
 ### Requirement: User can add a series to their list
 The system SHALL allow a user to add a new series from a shared editor with title, author, planned series length, and an optional ordered list of known titles, without manually entering released or read counts and without manually selecting publication or reading status.
@@ -63,29 +119,6 @@ The system SHALL allow a user to update title, author, and planned series length
 - **WHEN** a user records series metadata and title states
 - **THEN** the system does not show a manual publication-state selector and derives publication state from the title states and planned length
 
-### Requirement: User can manage ordered titles within a series
-The system SHALL allow a user to add, rename, remove, and reorder known titles within a series, and SHALL assign each known title exactly one state: Upcoming, Released, or Read.
-
-#### Scenario: Add a known title
-- **WHEN** a user adds a non-empty title while creating or editing a series
-- **THEN** the system appends it to the ordered title list and includes it in the known-title count
-
-#### Scenario: Change title state
-- **WHEN** a user selects Upcoming, Released, or Read for a known title
-- **THEN** the system stores that single state without exposing an invalid read-but-unreleased combination
-
-#### Scenario: Reorder known titles
-- **WHEN** a user moves a known title to a different series position
-- **THEN** the system preserves the new order for subsequent editor and next-title views
-
-#### Scenario: Remove a known title
-- **WHEN** a user removes a title before saving the series
-- **THEN** the title is excluded from the saved ordered list and all derived counts
-
-#### Scenario: Reject blank known title
-- **WHEN** a title row is present with no title text
-- **THEN** the system rejects the draft and identifies the blank title row
-
 ### Requirement: User can view all series at a glance
 The system SHALL present each tracked series as one compact clickable dashboard row containing series identity, read-versus-planned progress, and one context-sensitive next-title or status line, without title lists, badges, progress bars, status columns, or inline row actions.
 
@@ -96,18 +129,6 @@ The system SHALL present each tracked series as one compact clickable dashboard 
 #### Scenario: Keep title details off the dashboard
 - **WHEN** a series has one or more known titles
 - **THEN** the dashboard does not render its full title list or per-title state controls
-
-#### Scenario: Dashboard actions omit manual complete
-- **WHEN** a user views actions for a series
-- **THEN** the dashboard does not show an actions column or a manual completion action
-
-#### Scenario: Symbol row actions
-- **WHEN** a user views a series row
-- **THEN** the dashboard does not show row action symbols or per-title controls
-
-#### Scenario: Symbol actions remain accessible
-- **WHEN** a user focuses or hovers over dashboard list navigation
-- **THEN** each clickable row provides an accessible edit navigation name
 
 #### Scenario: Navigate to edit from row
 - **WHEN** a user activates a dashboard row
@@ -120,6 +141,18 @@ The system SHALL present each tracked series as one compact clickable dashboard 
 #### Scenario: Show progress on mobile
 - **WHEN** the dashboard is viewed on a small viewport
 - **THEN** progress and the secondary line move beneath the series identity without horizontal overflow
+
+#### Scenario: Dashboard actions omit manual complete
+- **WHEN** a user views actions for a series
+- **THEN** the dashboard does not show an actions column or a manual completion action
+
+#### Scenario: Symbol row actions
+- **WHEN** a user views a series row
+- **THEN** the dashboard does not show row action symbols or per-title controls
+
+#### Scenario: Symbol actions remain accessible
+- **WHEN** a user focuses or hovers over dashboard list navigation
+- **THEN** each clickable row provides an accessible edit navigation name
 
 #### Scenario: Series state reflects completion
 - **WHEN** every planned title is known and Read
@@ -144,29 +177,6 @@ The system SHALL present each tracked series as one compact clickable dashboard 
 #### Scenario: Identify dropped series in the list
 - **WHEN** a series is Dropped
 - **THEN** its secondary line shows `Dropped` and the row uses the dropped color
-
-### Requirement: User can see the next title in a series
-The system SHALL derive one concise next-title message from ordered known titles and display it as the dashboard row's secondary status line.
-
-#### Scenario: Show next released unread title
-- **WHEN** one or more known titles are Released and unread
-- **THEN** the dashboard shows `Next: <title>` for the earliest such title in series order
-
-#### Scenario: Show next upcoming title
-- **WHEN** no released unread title exists and a known title is Upcoming
-- **THEN** the dashboard shows `Upcoming: <title>` for the earliest upcoming title in series order
-
-#### Scenario: Show up-to-date fallback
-- **WHEN** all known released titles are Read, at least one planned title remains unannounced, and no known title is Upcoming
-- **THEN** the dashboard shows `Up to date`
-
-#### Scenario: Show completed fallback
-- **WHEN** every planned title is known and Read
-- **THEN** the dashboard shows `Completed`
-
-#### Scenario: Show no-announcement fallback
-- **WHEN** the series has no known titles
-- **THEN** the dashboard shows `No titles announced`
 
 ### Requirement: Reading list UI is polished and responsive
 The system SHALL present the reading list, shell, controls, status rows, and editor with a clean responsive visual design that uses soft colors, clear hierarchy, subtle reading-themed whimsy, and efficient viewport use while preserving established styling, behavior, and accessibility outside the explicit scope of each UI change.
@@ -206,60 +216,6 @@ The system SHALL present the reading list, shell, controls, status rows, and edi
 #### Scenario: Preserve light and dark comfort
 - **WHEN** a user views either light mode or dark mode
 - **THEN** colors remain soft, readable, and not harsh on the eye across the shell, list, controls, editor, and row states
-
-### Requirement: User can choose the application appearance theme
-The system SHALL provide an accessible appearance-theme toggle that supports a soft light theme and a muted midnight-blue dark theme, respects the system preference when no explicit choice exists, and persists an explicit user choice locally.
-
-#### Scenario: Initial theme follows system preference
-- **WHEN** a user opens the application without a saved theme choice
-- **THEN** the application uses the device's light or dark color preference
-
-#### Scenario: Toggle theme
-- **WHEN** a user activates the appearance-theme toggle
-- **THEN** the application switches between light and dark themes and updates the toggle's accessible label and state
-
-#### Scenario: Persist theme choice
-- **WHEN** a user selects a theme
-- **THEN** the application stores that choice locally and restores it on later visits
-
-#### Scenario: Theme covers the application surface
-- **WHEN** a user views the application in dark mode
-- **THEN** the shell, dashboard, editor drawer, controls, table rows, progress notes, overlays, and text use readable dark-theme colors with sufficient contrast
-
-#### Scenario: Use a midnight-blue dark palette
-- **WHEN** a user views the application in dark mode
-- **THEN** the application uses muted midnight-blue backgrounds and surfaces, blue accents, soft blue-white text, and distinct but restrained reading, completed, and dropped row states
-
-#### Scenario: Preserve theme accessibility
-- **WHEN** a user navigates the theme toggle and dashboard controls by keyboard
-- **THEN** the controls expose their current state and remain visibly focusable in both themes
-
-### Requirement: Application shell is minimal and branded
-The system SHALL present a minimal application shell that uses the display name `Series Tracker`, avoids scaffold placeholder pages, and keeps navigation focused on the tracker experience.
-
-#### Scenario: View application shell
-- **WHEN** a user opens the application
-- **THEN** the shell displays `Series Tracker` as the visible app name without underscores
-
-#### Scenario: Omit redundant dashboard navigation
-- **WHEN** a user views the application shell
-- **THEN** the shell does not show a separate Dashboard navigation link because the app name links to the tracker page
-
-#### Scenario: Show focused page title
-- **WHEN** a user views the tracker page
-- **THEN** the app shows `Reading List` as the visible page heading while keeping `Series Tracker` as the shell brand
-
-#### Scenario: Omit duplicate document title
-- **WHEN** a user views the tracker page in the browser
-- **THEN** the document title shows `Series Tracker` without repeating the name
-
-#### Scenario: Omit placeholder privacy page
-- **WHEN** a user views the application shell
-- **THEN** the shell does not show Privacy navigation or footer links and the scaffolded Privacy page is not exposed
-
-#### Scenario: Preserve theme control
-- **WHEN** navigation links are simplified
-- **THEN** the application still exposes the appearance-theme toggle in the shell
 
 ### Requirement: Shared series editor provides consistent add and edit flow
 The system SHALL provide one responsive editor structure for creating and editing series, grouping series details, planned length, ordered title rows, live summary counts, and save/cancel actions into a clear flow.
@@ -303,40 +259,6 @@ The system SHALL provide one responsive editor structure for creating and editin
 #### Scenario: Validate shared editor input
 - **WHEN** a user submits invalid title, author, planned-length, known-title, or title-state data from either mode
 - **THEN** the editor shows the relevant validation message and preserves the submitted draft
-
-### Requirement: User can permanently delete a series
-The system SHALL allow a user to permanently remove an existing series from the shared editor only after explicit confirmation.
-
-#### Scenario: Show deletion action while editing
-- **WHEN** a user opens the shared editor for an existing series
-- **THEN** the editor provides a clearly identified delete action
-
-#### Scenario: Confirm deletion
-- **WHEN** a user chooses the delete action
-- **THEN** the system requires explicit confirmation before removing the series
-
-#### Scenario: Delete confirmed series
-- **WHEN** a user confirms deletion of an existing series
-- **THEN** the system permanently removes that series record, closes the editor, and returns to the active dashboard filter without the deleted row
-
-#### Scenario: Cancel deletion
-- **WHEN** a user dismisses or cancels the deletion confirmation
-- **THEN** the system keeps the series record unchanged and leaves the editor available
-
-#### Scenario: Do not expose deletion while creating
-- **WHEN** a user opens the shared editor in create mode
-- **THEN** the system does not show a delete action
-
-#### Scenario: Handle missing series deletion
-- **WHEN** a user submits a deletion request for a series that no longer exists
-- **THEN** the system does not delete another record and returns a not-found response
-
-### Requirement: Dashboard UI changes are refreshed and smoke tested
-Any dashboard UI change SHALL be verified against a freshly refreshed browser view before it is considered complete.
-
-#### Scenario: Validate a dashboard UI change
-- **WHEN** a dashboard UI change is implemented
-- **THEN** the developer refreshes the running UI and performs a smoke test that checks the changed behavior is visible and the dashboard remains usable
 
 ### Requirement: User can update progress for a series
 The system SHALL derive progress from the states of ordered known titles rather than accepting aggregate released or read counts.
@@ -385,21 +307,6 @@ The system SHALL derive progress from the states of ordered known titles rather 
 - **WHEN** a title in a Completed series is changed from Read to Released or Upcoming
 - **THEN** the system reduces derived progress and recalculates reading and publication status
 
-### Requirement: User can change series status
-The system SHALL allow a user to manually set a series to dropped, while reading, not started, up to date, and completed states are derived from progress, released count, series length, and publication completion state.
-
-#### Scenario: Mark series complete
-- **WHEN** a user sets reading status to completed
-- **THEN** the system does not provide a manual completed override and derives completed only when books read equals series length and the publication state is completed
-
-#### Scenario: Mark series dropped
-- **WHEN** a user sets reading status to dropped
-- **THEN** the system updates the status without changing recorded progress
-
-#### Scenario: Restore series to reading
-- **WHEN** a user edits a tracked series back to reading
-- **THEN** the system derives not started, reading, up to date, or completed from the recorded progress and publication state
-
 ### Requirement: User can see derived reading status
 The system SHALL derive non-dropped reading status from planned series length and title states using this precedence: Not started when no title is Read; Completed when every planned title is known and Read; Up to date when every released title is Read but the series is not complete; otherwise Reading.
 
@@ -437,28 +344,6 @@ The system SHALL derive publication status from title states and planned series 
 #### Scenario: Full progress implies fully released publication
 - **WHEN** every planned title is Read
 - **THEN** every title also counts as released and publication status is Fully released
-
-### Requirement: Application data adopts title-based tracking
-The system SHALL initialize the title-based storage model without retaining aggregate-only series records from the previous schema.
-
-#### Scenario: Start with the previous aggregate schema
-- **WHEN** the application first starts after the title-tracking update against an existing aggregate-only database
-- **THEN** it resets tracker data, creates the title-based schema, and starts with an empty series list
-
-#### Scenario: Start again after schema adoption
-- **WHEN** the application starts against an already compatible title-based database
-- **THEN** it retains existing series and title records
-
-### Requirement: User can archive a finished or dropped series
-The system SHALL NOT provide an archive workflow or dedicated archived view for tracked series.
-
-#### Scenario: Archive a series
-- **WHEN** a user chooses to archive a series that is finished or no longer being followed
-- **THEN** the system does not provide an archive action and the series remains managed through reading, completed, or dropped reading status
-
-#### Scenario: Restore an archived series
-- **WHEN** a user uses the tracker after archive behavior is removed
-- **THEN** the system does not provide a restore-from-archive action or archived view
 
 ### Requirement: User can filter active reading list by status
 The system SHALL allow a user to filter the dashboard by All, To read, Up to date, Completed, or Dropped using derived title state and series status.

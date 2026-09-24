@@ -1,5 +1,6 @@
-using Microsoft.Data.Sqlite;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Series_Tracker.Data;
 using Series_Tracker.Models;
@@ -11,420 +12,364 @@ namespace SeriesTracker.Tests;
 public class SeriesTrackerTests
 {
     [Fact]
-    public void GetProgressPercent_ReturnsZero_WhenTotalIsZero()
+    public void DerivedCounts_UseTitleStatesAndPlannedLength()
     {
-        var series = new SeriesItem { CurrentProgress = 0, TotalProgress = 0 };
+        var series = CreateSeries(6,
+            ("Read", SeriesTitleState.Read),
+            ("Released", SeriesTitleState.Released),
+            ("Upcoming", SeriesTitleState.Upcoming));
 
-        var result = series.GetProgressPercent();
-
-        Assert.Equal(0, result);
-    }
-
-    [Fact]
-    public void GetProgressPercent_UsesSeriesLengthAsDenominator()
-    {
-        var series = new SeriesItem { CurrentProgress = 7, CurrentReleasedCount = 10, TotalProgress = 20 };
-
-        var result = series.GetProgressPercent();
-
-        Assert.Equal(35, result);
-    }
-
-    [Fact]
-    public void GetProgressPercent_DoesNotTreatAllReleasedBooksAsComplete()
-    {
-        var series = new SeriesItem { CurrentProgress = 5, CurrentReleasedCount = 5, TotalProgress = 10 };
-
-        var result = series.GetProgressPercent();
-
-        Assert.Equal(50, result);
-    }
-
-    [Fact]
-    public void GetProgressFraction_ReturnsCurrentOverSeriesLength()
-    {
-        var series = new SeriesItem { CurrentProgress = 7, CurrentReleasedCount = 10, TotalProgress = 20 };
-
-        var result = series.GetProgressFraction();
-
-        Assert.Equal("7/20", result);
+        Assert.Equal(3, series.GetKnownTitleCount());
+        Assert.Equal(2, series.GetReleasedCount());
+        Assert.Equal(1, series.GetReadCount());
+        Assert.Equal(3, series.GetUnannouncedCount());
+        Assert.Equal(SeriesCompletionState.Ongoing, series.GetDerivedCompletionState());
+        Assert.Equal("1 / 6 read", series.GetDashboardProgressText());
     }
 
     [Theory]
-    [InlineData(SeriesStatus.Dropped, 0, 0, 10, SeriesCompletionState.Ongoing)]
-    [InlineData(SeriesStatus.NotStarted, 0, 0, 10, SeriesCompletionState.Ongoing)]
-    [InlineData(SeriesStatus.Reading, 2, 5, 10, SeriesCompletionState.Ongoing)]
-    [InlineData(SeriesStatus.UpToDate, 5, 5, 10, SeriesCompletionState.Ongoing)]
-    [InlineData(SeriesStatus.Completed, 10, 10, 10, SeriesCompletionState.Completed)]
-    public void GetDerivedStatus_ReturnsExpectedState(SeriesStatus storedStatus, int currentProgress, int currentReleasedCount, int totalProgress, SeriesCompletionState completionState)
+    [InlineData(false, 3, "", SeriesStatus.NotStarted)]
+    [InlineData(false, 3, "RL", SeriesStatus.Reading)]
+    [InlineData(false, 3, "RU", SeriesStatus.UpToDate)]
+    [InlineData(false, 2, "RR", SeriesStatus.Completed)]
+    [InlineData(true, 3, "RR", SeriesStatus.Dropped)]
+    public void GetDerivedStatus_UsesTitleStatePrecedence(bool dropped, int plannedLength, string states, SeriesStatus expected)
     {
-        var series = new SeriesItem
+        var titles = states.Select((state, index) => ($"Book {index + 1}", state switch
         {
-            Status = storedStatus,
-            CurrentProgress = currentProgress,
-            CurrentReleasedCount = currentReleasedCount,
-            TotalProgress = totalProgress,
-            CompletionState = completionState
-        };
+            'R' => SeriesTitleState.Read,
+            'L' => SeriesTitleState.Released,
+            _ => SeriesTitleState.Upcoming
+        })).ToArray();
+        var series = CreateSeries(plannedLength, titles);
+        series.IsDropped = dropped;
 
-        Assert.Equal(storedStatus, series.GetDerivedStatus());
+        Assert.Equal(expected, series.GetDerivedStatus());
     }
 
     [Fact]
-    public void GetDerivedStatus_DoesNotRemainCompleted_WhenProgressIsReduced()
+    public void DashboardSecondaryText_UsesActionableTitleOrderAndFallbacks()
     {
-        var series = new SeriesItem
-        {
-            Status = SeriesStatus.Completed,
-            CurrentProgress = 4,
-            CurrentReleasedCount = 10,
-            TotalProgress = 10,
-            CompletionState = SeriesCompletionState.Completed
-        };
+        var series = CreateSeries(5,
+            ("Already read", SeriesTitleState.Read),
+            ("Later release", SeriesTitleState.Upcoming),
+            ("Read next", SeriesTitleState.Released));
 
-        Assert.Equal(SeriesStatus.Reading, series.GetDerivedStatus());
+        Assert.Equal("Next: Read next", series.GetDashboardSecondaryText());
+
+        series.Titles.Single(title => title.Title == "Read next").State = SeriesTitleState.Read;
+        Assert.Equal("Upcoming: Later release", series.GetDashboardSecondaryText());
+
+        series.Titles.Single(title => title.Title == "Later release").State = SeriesTitleState.Read;
+        Assert.Equal("Up to date", series.GetDashboardSecondaryText());
+
+        series.PlannedLength = 3;
+        Assert.Equal("Completed", series.GetDashboardSecondaryText());
+
+        series.IsDropped = true;
+        Assert.Equal("Dropped", series.GetDashboardSecondaryText());
     }
 
     [Fact]
-    public void GetDashboardProgressText_ReturnsDropped_ForDroppedSeries()
+    public void DashboardSecondaryText_ReportsNoTitlesAnnounced()
     {
-        var series = new SeriesItem { CurrentProgress = 3, CurrentReleasedCount = 5, TotalProgress = 10, Status = SeriesStatus.Dropped };
-
-        var result = series.GetDashboardProgressText();
-
-        Assert.Equal("3/10", result);
+        Assert.Equal("No titles announced", CreateSeries(4).GetDashboardSecondaryText());
     }
 
     [Fact]
-    public void GetDashboardProgressText_ReturnsProgress_ForReadingSeries()
+    public void ValidateSeriesDraft_RejectsBlankTitleAndExcessKnownTitles()
     {
-        var series = new SeriesItem { CurrentProgress = 3, CurrentReleasedCount = 5, TotalProgress = 10, Status = SeriesStatus.Reading };
+        var blankTitle = ValidForm();
+        blankTitle.Titles.Add(new SeriesTitleDraft());
+        Assert.Equal("Title 1 needs a name.", SeriesEditorPageModel.ValidateSeriesDraft(blankTitle));
 
-        var result = series.GetDashboardProgressText();
-
-        Assert.Equal("3/10", result);
+        var tooMany = ValidForm();
+        tooMany.PlannedLength = 1;
+        tooMany.Titles =
+        [
+            new SeriesTitleDraft { Title = "One" },
+            new SeriesTitleDraft { Title = "Two" }
+        ];
+        Assert.Equal("Known titles cannot exceed the planned series length.", SeriesEditorPageModel.ValidateSeriesDraft(tooMany));
     }
 
     [Fact]
-    public void GetAvailableToReadCount_ReturnsReleasedBooksNotRead()
+    public void ValidateSeriesDraft_AcceptsValidOrderedTitles()
     {
-        var series = new SeriesItem { CurrentProgress = 3, CurrentReleasedCount = 10, TotalProgress = 20 };
+        var form = ValidForm();
+        form.Titles =
+        [
+            new SeriesTitleDraft { Title = "One", State = SeriesTitleState.Read },
+            new SeriesTitleDraft { Title = "Two", State = SeriesTitleState.Released }
+        ];
 
-        var result = series.GetAvailableToReadCount();
-
-        Assert.Equal(7, result);
+        Assert.Null(SeriesEditorPageModel.ValidateSeriesDraft(form));
     }
 
     [Fact]
-    public void GetAvailableToReadCount_NeverReturnsNegative()
+    public void EfModel_ConfiguresRequiredCascadeAndUniquePosition()
     {
-        var series = new SeriesItem { CurrentProgress = 12, CurrentReleasedCount = 12, TotalProgress = 20 };
+        using var connection = new SqliteConnection("Data Source=:memory:");
+        var dbContext = CreateDbContext(connection);
+        var entity = dbContext.Model.FindEntityType(typeof(SeriesTitle))!;
 
-        var result = series.GetAvailableToReadCount();
-
-        Assert.Equal(0, result);
+        Assert.False(entity.FindProperty(nameof(SeriesTitle.Title))!.IsNullable);
+        Assert.Equal(200, entity.FindProperty(nameof(SeriesTitle.Title))!.GetMaxLength());
+        Assert.Equal(DeleteBehavior.Cascade, entity.GetForeignKeys().Single().DeleteBehavior);
+        Assert.True(entity.GetIndexes().Single(index => index.Properties.Select(property => property.Name)
+            .SequenceEqual([nameof(SeriesTitle.SeriesItemId), nameof(SeriesTitle.Position)])).IsUnique);
     }
 
     [Fact]
-    public void IsUpToDate_ReturnsTrue_WhenAllReleasedBooksAreReadButSeriesContinues()
-    {
-        var series = new SeriesItem { CurrentProgress = 10, CurrentReleasedCount = 10, TotalProgress = 20 };
-
-        var result = series.IsUpToDate();
-
-        Assert.True(result);
-    }
-
-    [Fact]
-    public void GetDisplayCompletionState_ReturnsCompleted_WhenProgressIsFull()
-    {
-        var series = new SeriesItem { CurrentProgress = 20, CurrentReleasedCount = 20, TotalProgress = 20, CompletionState = SeriesCompletionState.Ongoing };
-
-        var result = series.GetDisplayCompletionState();
-
-        Assert.Equal(SeriesCompletionState.Completed, result);
-    }
-
-    [Theory]
-    [InlineData(4, 10, SeriesCompletionState.Ongoing)]
-    [InlineData(10, 10, SeriesCompletionState.Completed)]
-    public void GetDerivedCompletionState_ReturnsExpectedPublicationState(int currentReleasedCount, int totalProgress, SeriesCompletionState expected)
-    {
-        var series = new SeriesItem { CurrentReleasedCount = currentReleasedCount, TotalProgress = totalProgress };
-
-        var result = series.GetDerivedCompletionState();
-
-        Assert.Equal(expected, result);
-    }
-
-    [Fact]
-    public void SeriesStatus_DefaultsToReading()
-    {
-        var series = new SeriesItem();
-
-        Assert.Equal(SeriesStatus.Reading, series.Status);
-    }
-
-    [Fact]
-    public void SeriesMetadata_HasExpectedDefaults()
-    {
-        var series = new SeriesItem();
-
-        Assert.Equal(string.Empty, series.Author);
-        Assert.Equal(SeriesCompletionState.Ongoing, series.CompletionState);
-    }
-
-    [Fact]
-    public void ValidateSeriesDraft_ReturnsError_WhenTitleIsMissing()
-    {
-        var result = IndexModel.ValidateSeriesDraft(string.Empty, "Author", 10, 5, 3, SeriesCompletionState.Ongoing);
-
-        Assert.Equal("Series title is required.", result);
-    }
-
-    [Fact]
-    public void ValidateSeriesDraft_ReturnsError_WhenAuthorIsMissing()
-    {
-        var result = IndexModel.ValidateSeriesDraft("The Hobbit", string.Empty, 10, 5, 3, SeriesCompletionState.Ongoing);
-
-        Assert.Equal("Author is required.", result);
-    }
-
-    [Fact]
-    public void ValidateSeriesDraft_ReturnsError_WhenCompletionStateIsInvalid()
-    {
-        var result = IndexModel.ValidateSeriesDraft("The Hobbit", "Author", 10, 5, 3, (SeriesCompletionState)99);
-
-        Assert.Equal("Series completion state must be ongoing or completed.", result);
-    }
-
-    [Fact]
-    public void ValidateSeriesDraft_ReturnsNull_WhenDraftIsValid()
-    {
-        var result = IndexModel.ValidateSeriesDraft("The Hobbit", "Author", 10, 5, 3, SeriesCompletionState.Completed);
-
-        Assert.Null(result);
-    }
-
-    [Fact]
-    public void ValidateSeriesDraft_ReturnsError_WhenReleasedCountExceedsSeriesLength()
-    {
-        var result = IndexModel.ValidateSeriesDraft("The Hobbit", "Author", 10, 11, 3, SeriesCompletionState.Ongoing);
-
-        Assert.Equal("Released so far must be between 0 and the series length.", result);
-    }
-
-    [Fact]
-    public void ValidateSeriesDraft_ReturnsError_WhenBooksReadExceedsReleasedCount()
-    {
-        var result = IndexModel.ValidateSeriesDraft("The Hobbit", "Author", 10, 5, 6, SeriesCompletionState.Ongoing);
-
-        Assert.Equal("Books read so far must be between 0 and the released count.", result);
-    }
-
-    [Fact]
-    public async Task OnGetAsync_LoadsSharedEditorFormForEditId()
+    public async Task Persistence_LoadsTitlesInOrderAndCascadeDeletesThem()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync();
-        var series = new SeriesItem
-        {
-            Title = "Shared Editor Series",
-            Author = "Test Author",
-            TotalProgress = 8,
-            CurrentReleasedCount = 5,
-            CurrentProgress = 3,
-            Status = SeriesStatus.Dropped,
-            CompletionState = SeriesCompletionState.Ongoing
-        };
+        var series = CreateSeries(2,
+            ("Second", SeriesTitleState.Upcoming),
+            ("First", SeriesTitleState.Read));
+        series.Titles.ElementAt(0).Position = 1;
+        series.Titles.ElementAt(1).Position = 0;
         dbContext.Series.Add(series);
         await dbContext.SaveChangesAsync();
-        var pageModel = new IndexModel(dbContext) { EditId = series.Id };
 
-        await pageModel.OnGetAsync();
+        var loaded = await dbContext.Series.AsNoTracking().Include(item => item.Titles).SingleAsync();
+        Assert.Equal(["First", "Second"], loaded.Titles.OrderBy(title => title.Position).Select(title => title.Title));
 
-        Assert.True(pageModel.IsEditMode);
-        Assert.Equal(series.Id, pageModel.Form.Id);
-        Assert.Equal(SeriesStatus.Dropped, pageModel.Form.Status);
-        Assert.Equal("Shared Editor Series", pageModel.Form.Title);
-    }
-
-    [Fact]
-    public async Task OnGetAsync_ReadingFilterIncludesDerivedOngoingStates()
-    {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
-        await using var dbContext = CreateDbContext(connection);
-        await dbContext.Database.EnsureCreatedAsync();
-        dbContext.Series.AddRange(
-            new SeriesItem { Title = "Not Started", Author = "Test", TotalProgress = 5, CurrentReleasedCount = 2, CurrentProgress = 0 },
-            new SeriesItem { Title = "Reading", Author = "Test", TotalProgress = 5, CurrentReleasedCount = 3, CurrentProgress = 1 },
-            new SeriesItem { Title = "Up To Date", Author = "Test", TotalProgress = 5, CurrentReleasedCount = 3, CurrentProgress = 3 },
-            new SeriesItem { Title = "Completed", Author = "Test", TotalProgress = 5, CurrentReleasedCount = 5, CurrentProgress = 5, CompletionState = SeriesCompletionState.Completed },
-            new SeriesItem { Title = "Dropped", Author = "Test", TotalProgress = 5, CurrentReleasedCount = 5, CurrentProgress = 1, Status = SeriesStatus.Dropped });
+        dbContext.Series.Remove(series);
         await dbContext.SaveChangesAsync();
-        var pageModel = new IndexModel(dbContext) { StatusFilter = "Reading" };
-
-        await pageModel.OnGetAsync();
-
-        Assert.Equal(["Up To Date", "Reading", "Not Started"], pageModel.SeriesItems.Select(series => series.Title).ToArray());
+        Assert.Empty(await dbContext.SeriesTitles.ToListAsync());
     }
 
     [Fact]
-    public async Task OnPostDeleteAsync_RemovesRequestedSeriesAndPreservesFilter()
+    public async Task Persistence_RejectsDuplicatePositionsWithinSeries()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync();
-        var series = new SeriesItem { Title = "Delete Me", Author = "Test", TotalProgress = 3, CurrentReleasedCount = 1, CurrentProgress = 0 };
+        var series = CreateSeries(2,
+            ("One", SeriesTitleState.Read),
+            ("Two", SeriesTitleState.Read));
+        series.Titles.ElementAt(1).Position = 0;
         dbContext.Series.Add(series);
-        await dbContext.SaveChangesAsync();
-        var pageModel = new IndexModel(dbContext) { StatusFilter = "Dropped" };
 
-        var result = await pageModel.OnPostDeleteAsync(series.Id);
+        await Assert.ThrowsAsync<DbUpdateException>(() => dbContext.SaveChangesAsync());
+    }
 
-        var redirect = Assert.IsType<RedirectToPageResult>(result);
-        Assert.Equal("Dropped", redirect.RouteValues?["StatusFilter"]);
+    [Fact]
+    public async Task DatabaseInitializer_ResetsLegacySchemaAndPreservesCompatibleData()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"series-tracker-{Guid.NewGuid():N}.db");
+        try
+        {
+            await using (var legacyConnection = new SqliteConnection($"Data Source={databasePath}"))
+            {
+                await legacyConnection.OpenAsync();
+                var command = legacyConnection.CreateCommand();
+                command.CommandText = "CREATE TABLE Series (Id INTEGER PRIMARY KEY, Title TEXT NOT NULL); INSERT INTO Series VALUES (1, 'Legacy');";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            await using (var resetContext = CreateDbContext(databasePath))
+            {
+                await DatabaseInitializer.InitializeAsync(resetContext);
+                Assert.Empty(await resetContext.Series.ToListAsync());
+                resetContext.Series.Add(CreateSeries(1, ("Fresh", SeriesTitleState.Read)));
+                await resetContext.SaveChangesAsync();
+            }
+
+            await using (var retainedContext = CreateDbContext(databasePath))
+            {
+                await DatabaseInitializer.InitializeAsync(retainedContext);
+                Assert.Equal("Series", (await retainedContext.Series.Include(series => series.Titles).SingleAsync()).Title);
+            }
+        }
+        finally
+        {
+            File.Delete(databasePath);
+        }
+    }
+
+    [Fact]
+    public async Task CreatePage_SavesOrderedTitles()
+    {
+        await using var connection = await OpenMemoryConnectionAsync();
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync();
+        var page = new CreateModel(dbContext)
+        {
+            Form = ValidForm()
+        };
+        page.Form.Titles =
+        [
+            new SeriesTitleDraft { Title = "First", State = SeriesTitleState.Read },
+            new SeriesTitleDraft { Title = "Second", State = SeriesTitleState.Released }
+        ];
+
+        var result = await page.OnPostAsync();
+
+        Assert.IsType<RedirectToPageResult>(result);
+        var saved = await dbContext.Series.Include(series => series.Titles).SingleAsync();
+        Assert.Equal(["First", "Second"], saved.Titles.OrderBy(title => title.Position).Select(title => title.Title));
+    }
+
+    [Fact]
+    public async Task CreatePage_PreservesInvalidDraft()
+    {
+        await using var connection = await OpenMemoryConnectionAsync();
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync();
+        var page = new CreateModel(dbContext) { Form = ValidForm() };
+        page.Form.Titles.Add(new SeriesTitleDraft());
+
+        var result = await page.OnPostAsync();
+
+        Assert.IsType<PageResult>(result);
+        Assert.Single(page.Form.Titles);
         Assert.Empty(await dbContext.Series.ToListAsync());
     }
 
     [Fact]
-    public async Task OnPostDeleteAsync_ReturnsNotFound_WhenSeriesDoesNotExist()
+    public async Task EditPage_LoadsAndReplacesOrderedTitles()
     {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
+        await using var connection = await OpenMemoryConnectionAsync();
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync();
-        var pageModel = new IndexModel(dbContext);
-
-        var result = await pageModel.OnPostDeleteAsync(999);
-
-        Assert.IsType<NotFoundResult>(result);
-    }
-
-    [Fact]
-    public async Task OnGetAsync_AllFilterPrioritizesActionableSeriesBeforeUpToDateAndFinishedStates()
-    {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
-        await using var dbContext = CreateDbContext(connection);
-        await dbContext.Database.EnsureCreatedAsync();
-        dbContext.Series.AddRange(
-            new SeriesItem { Title = "Completed", Author = "Test", TotalProgress = 5, CurrentReleasedCount = 5, CurrentProgress = 5 },
-            new SeriesItem { Title = "Up To Date", Author = "Test", TotalProgress = 5, CurrentReleasedCount = 3, CurrentProgress = 3 },
-            new SeriesItem { Title = "Books To Read", Author = "Test", TotalProgress = 5, CurrentReleasedCount = 3, CurrentProgress = 1 },
-            new SeriesItem { Title = "Not Released", Author = "Test", TotalProgress = 5, CurrentReleasedCount = 0, CurrentProgress = 0 },
-            new SeriesItem { Title = "Dropped", Author = "Test", TotalProgress = 5, CurrentReleasedCount = 3, CurrentProgress = 1, Status = SeriesStatus.Dropped });
-        await dbContext.SaveChangesAsync();
-        var pageModel = new IndexModel(dbContext) { StatusFilter = "All" };
-
-        await pageModel.OnGetAsync();
-
-        Assert.Equal(["Books To Read", "Up To Date", "Not Released", "Completed", "Dropped"], pageModel.SeriesItems.Select(series => series.Title).ToArray());
-    }
-
-    [Fact]
-    public async Task OnPostSaveAsync_CreatesNewSeriesAsReading()
-    {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
-        await using var dbContext = CreateDbContext(connection);
-        await dbContext.Database.EnsureCreatedAsync();
-        var pageModel = new IndexModel(dbContext)
-        {
-            Form = new IndexModel.SeriesFormModel
-            {
-                Title = "New Shared Series",
-                Author = "Test Author",
-                TotalProgress = 10,
-                CurrentReleasedCount = 4,
-                CurrentProgress = 2,
-                Status = SeriesStatus.Reading,
-                CompletionState = SeriesCompletionState.Ongoing
-            }
-        };
-
-        await pageModel.OnPostSaveAsync();
-
-        var created = await dbContext.Series.SingleAsync();
-        Assert.Equal(SeriesStatus.Reading, created.Status);
-        Assert.Equal(2, created.CurrentProgress);
-    }
-
-    [Fact]
-    public async Task OnPostSaveAsync_ReducingCompletedProgressDerivesReading()
-    {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
-        await using var dbContext = CreateDbContext(connection);
-        await dbContext.Database.EnsureCreatedAsync();
-        var series = new SeriesItem
-        {
-            Title = "Completed Series",
-            Author = "Test Author",
-            TotalProgress = 10,
-            CurrentReleasedCount = 10,
-            CurrentProgress = 10,
-            Status = SeriesStatus.Completed,
-            CompletionState = SeriesCompletionState.Completed
-        };
+        var series = CreateSeries(3, ("Old", SeriesTitleState.Released));
         dbContext.Series.Add(series);
         await dbContext.SaveChangesAsync();
-        var pageModel = new IndexModel(dbContext)
-        {
-            Form = new IndexModel.SeriesFormModel
-            {
-                Id = series.Id,
-                Title = series.Title,
-                Author = series.Author,
-                TotalProgress = 10,
-                CurrentReleasedCount = 10,
-                CurrentProgress = 4,
-                CompletionState = SeriesCompletionState.Completed,
-                Status = SeriesStatus.Reading
-            }
-        };
+        var page = new EditModel(dbContext);
 
-        await pageModel.OnPostSaveAsync();
+        Assert.IsType<PageResult>(await page.OnGetAsync(series.Id));
+        Assert.Equal("Old", page.Form.Titles.Single().Title);
 
-        var updated = await dbContext.Series.SingleAsync();
-        Assert.Equal(SeriesStatus.Reading, updated.Status);
+        page.Form.Titles =
+        [
+            new SeriesTitleDraft { Title = "New first", State = SeriesTitleState.Read },
+            new SeriesTitleDraft { Title = "New second", State = SeriesTitleState.Upcoming }
+        ];
+        page.Form.IsDropped = true;
+        var result = await page.OnPostAsync(series.Id);
+
+        Assert.IsType<RedirectToPageResult>(result);
+        var updated = await dbContext.Series.AsNoTracking().Include(item => item.Titles).SingleAsync();
+        Assert.True(updated.IsDropped);
+        Assert.Equal(["New first", "New second"], updated.Titles.OrderBy(title => title.Position).Select(title => title.Title));
     }
 
     [Fact]
-    public async Task OnPostSaveAsync_FullProgressDerivesCompletionState()
+    public async Task EditPage_DeleteRemovesSeries()
     {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
+        await using var connection = await OpenMemoryConnectionAsync();
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync();
-        var pageModel = new IndexModel(dbContext)
+        var series = CreateSeries(1, ("One", SeriesTitleState.Read));
+        dbContext.Series.Add(series);
+        await dbContext.SaveChangesAsync();
+
+        var result = await new EditModel(dbContext).OnPostDeleteAsync(series.Id);
+
+        Assert.IsType<RedirectToPageResult>(result);
+        Assert.Empty(await dbContext.Series.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Dashboard_FiltersAndOrdersDerivedSeries()
+    {
+        await using var connection = await OpenMemoryConnectionAsync();
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync();
+        var next = CreateSeries(3, ("Read", SeriesTitleState.Read), ("Next", SeriesTitleState.Released));
+        next.Title = "Has next";
+        var current = CreateSeries(3, ("Read", SeriesTitleState.Read), ("Soon", SeriesTitleState.Upcoming));
+        current.Title = "Up to date";
+        var complete = CreateSeries(1, ("Done", SeriesTitleState.Read));
+        complete.Title = "Complete";
+        var dropped = CreateSeries(2, ("Read", SeriesTitleState.Read));
+        dropped.Title = "Dropped";
+        dropped.IsDropped = true;
+        dbContext.Series.AddRange(next, current, complete, dropped);
+        await dbContext.SaveChangesAsync();
+
+        var allPage = new IndexModel(dbContext);
+        await allPage.OnGetAsync();
+        Assert.Equal(["Has next", "Up to date", "Complete", "Dropped"], allPage.SeriesItems.Select(series => series.Title));
+
+        var toReadPage = new IndexModel(dbContext) { StatusFilter = "To read" };
+        await toReadPage.OnGetAsync();
+        Assert.Equal("Has next", Assert.Single(toReadPage.SeriesItems).Title);
+
+        var completedPage = new IndexModel(dbContext) { StatusFilter = "Completed" };
+        await completedPage.OnGetAsync();
+        Assert.Equal("Complete", Assert.Single(completedPage.SeriesItems).Title);
+    }
+
+    [Theory]
+    [InlineData("All", 4)]
+    [InlineData("To read", 1)]
+    [InlineData("Up to date", 1)]
+    [InlineData("Completed", 1)]
+    [InlineData("Dropped", 1)]
+    public void Dashboard_FilterMatchesDerivedCriteria(string filter, int expectedCount)
+    {
+        var toRead = CreateSeries(3, ("Read", SeriesTitleState.Read), ("Next", SeriesTitleState.Released));
+        var upToDate = CreateSeries(3, ("Read", SeriesTitleState.Read), ("Soon", SeriesTitleState.Upcoming));
+        var complete = CreateSeries(1, ("Done", SeriesTitleState.Read));
+        var dropped = CreateSeries(2, ("Read", SeriesTitleState.Read));
+        dropped.IsDropped = true;
+
+        var result = IndexModel.ApplyFilter([toRead, upToDate, complete, dropped], filter).ToList();
+
+        Assert.Equal(expectedCount, result.Count);
+    }
+
+    private static SeriesItem CreateSeries(int plannedLength, params (string Title, SeriesTitleState State)[] titles)
+    {
+        return new SeriesItem
         {
-            Form = new IndexModel.SeriesFormModel
+            Title = "Series",
+            Author = "Author",
+            PlannedLength = plannedLength,
+            Titles = titles.Select((title, position) => new SeriesTitle
             {
-                Title = "Full Progress Series",
-                Author = "Test Author",
-                TotalProgress = 10,
-                CurrentReleasedCount = 10,
-                CurrentProgress = 10,
-                CompletionState = SeriesCompletionState.Ongoing
-            }
+                Title = title.Title,
+                State = title.State,
+                Position = position
+            }).ToList()
         };
+    }
 
-        await pageModel.OnPostSaveAsync();
+    private static SeriesFormModel ValidForm()
+    {
+        return new SeriesFormModel
+        {
+            Title = "Series",
+            Author = "Author",
+            PlannedLength = 3
+        };
+    }
 
-        var created = await dbContext.Series.SingleAsync();
-        Assert.Equal(10, created.CurrentReleasedCount);
-        Assert.Equal(SeriesCompletionState.Completed, created.CompletionState);
-        Assert.Equal(SeriesStatus.Completed, created.Status);
+    private static async Task<SqliteConnection> OpenMemoryConnectionAsync()
+    {
+        var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        return connection;
     }
 
     private static SeriesTrackerDbContext CreateDbContext(SqliteConnection connection)
     {
         var options = new DbContextOptionsBuilder<SeriesTrackerDbContext>().UseSqlite(connection).Options;
+        return new SeriesTrackerDbContext(options);
+    }
+
+    private static SeriesTrackerDbContext CreateDbContext(string databasePath)
+    {
+        var options = new DbContextOptionsBuilder<SeriesTrackerDbContext>()
+            .UseSqlite($"Data Source={databasePath}")
+            .Options;
         return new SeriesTrackerDbContext(options);
     }
 }
