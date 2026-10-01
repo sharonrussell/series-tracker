@@ -12,12 +12,52 @@ namespace SeriesTracker.Tests;
 public class SeriesTrackerTests
 {
     [Fact]
-    public void DerivedCounts_UseTitleStatesAndPlannedLength()
+    public void TitleAvailability_UsesReleaseDateBoundary()
+    {
+        var today = new DateOnly(2026, 10, 1);
+        var title = new SeriesTitle();
+
+        Assert.Equal(TitleAvailability.Unknown, title.GetAvailability(today));
+        title.ReleaseDate = today.AddDays(1);
+        Assert.Equal(TitleAvailability.Upcoming, title.GetAvailability(today));
+        title.ReleaseDate = today;
+        Assert.Equal(TitleAvailability.Available, title.GetAvailability(today));
+        title.ReleaseDate = today.AddDays(-1);
+        Assert.Equal(TitleAvailability.Available, title.GetAvailability(today));
+    }
+
+    [Fact]
+    public void SeriesAvailability_RollsOverWithoutEditingTitles()
+    {
+        var today = new DateOnly(2026, 10, 1);
+        var series = new SeriesItem
+        {
+            PlannedLength = 3,
+            Titles =
+            [
+                new SeriesTitle { Title = "Finished", Position = 0, ReleaseDate = today.AddDays(-1), IsRead = true },
+                new SeriesTitle { Title = "Next", Position = 1, ReleaseDate = today.AddDays(1) },
+                new SeriesTitle { Title = "Unknown", Position = 2 }
+            ]
+        };
+
+        Assert.Equal(1, series.GetReleasedCount(today));
+        Assert.Equal("Upcoming: Next", series.GetDashboardSecondaryText(today));
+        Assert.Equal(SeriesStatus.UpToDate, series.GetDerivedStatus(today));
+        Assert.Equal(2, series.GetReleasedCount(today.AddDays(1)));
+        Assert.Equal("Next: Next", series.GetDashboardSecondaryText(today.AddDays(1)));
+        Assert.Equal(SeriesStatus.Reading, series.GetDerivedStatus(today.AddDays(1)));
+        series.Titles.Single(title => title.Title == "Next").IsRead = true;
+        Assert.Equal("Date unknown: Unknown", series.GetDashboardSecondaryText(today.AddDays(1)));
+    }
+
+    [Fact]
+    public void DerivedCounts_UseDatesAndReadValuesAndPlannedLength()
     {
         var series = CreateSeries(6,
-            ("Read", SeriesTitleState.Read),
-            ("Released", SeriesTitleState.Released),
-            ("Upcoming", SeriesTitleState.Upcoming));
+            Read("Read"),
+            Available("Released"),
+            Upcoming("Upcoming"));
 
         Assert.Equal(3, series.GetKnownTitleCount());
         Assert.Equal(2, series.GetReleasedCount());
@@ -33,14 +73,14 @@ public class SeriesTrackerTests
     [InlineData(false, 3, "RU", SeriesStatus.UpToDate)]
     [InlineData(false, 2, "RR", SeriesStatus.Completed)]
     [InlineData(true, 3, "RR", SeriesStatus.Dropped)]
-    public void GetDerivedStatus_UsesTitleStatePrecedence(bool dropped, int plannedLength, string states, SeriesStatus expected)
+    public void GetDerivedStatus_UsesTitleAvailabilityPrecedence(bool dropped, int plannedLength, string states, SeriesStatus expected)
     {
-        var titles = states.Select((state, index) => ($"Book {index + 1}", state switch
+        var titles = states.Select((state, index) => state switch
         {
-            'R' => SeriesTitleState.Read,
-            'L' => SeriesTitleState.Released,
-            _ => SeriesTitleState.Upcoming
-        })).ToArray();
+            'R' => Read($"Book {index + 1}"),
+            'L' => Available($"Book {index + 1}"),
+            _ => Upcoming($"Book {index + 1}")
+        }).ToArray();
         var series = CreateSeries(plannedLength, titles);
         series.IsDropped = dropped;
 
@@ -51,16 +91,18 @@ public class SeriesTrackerTests
     public void DashboardSecondaryText_UsesActionableTitleOrderAndFallbacks()
     {
         var series = CreateSeries(5,
-            ("Already read", SeriesTitleState.Read),
-            ("Later release", SeriesTitleState.Upcoming),
-            ("Read next", SeriesTitleState.Released));
+            Read("Already read"),
+            Upcoming("Later release"),
+            Available("Read next"));
 
         Assert.Equal("Next: Read next", series.GetDashboardSecondaryText());
 
-        series.Titles.Single(title => title.Title == "Read next").State = SeriesTitleState.Read;
+        series.Titles.Single(title => title.Title == "Read next").IsRead = true;
         Assert.Equal("Upcoming: Later release", series.GetDashboardSecondaryText());
 
-        series.Titles.Single(title => title.Title == "Later release").State = SeriesTitleState.Read;
+        var laterRelease = series.Titles.Single(title => title.Title == "Later release");
+        laterRelease.ReleaseDate = DateOnly.FromDateTime(DateTime.Now);
+        laterRelease.IsRead = true;
         Assert.Equal("Up to date", series.GetDashboardSecondaryText());
 
         series.PlannedLength = 3;
@@ -99,11 +141,29 @@ public class SeriesTrackerTests
         var form = ValidForm();
         form.Titles =
         [
-            new SeriesTitleDraft { Title = "One", State = SeriesTitleState.Read },
-            new SeriesTitleDraft { Title = "Two", State = SeriesTitleState.Released }
+            new SeriesTitleDraft { Title = "One", ReleaseDate = new DateOnly(2026, 10, 1), IsRead = true },
+            new SeriesTitleDraft { Title = "Two" }
         ];
 
-        Assert.Null(SeriesEditorPageModel.ValidateSeriesDraft(form));
+        Assert.Null(SeriesEditorPageModel.ValidateSeriesDraft(form, new DateOnly(2026, 10, 1)));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("2026-10-02")]
+    public void ValidateSeriesDraft_RejectsReadWithoutAvailableDate(string? releaseDate)
+    {
+        var form = ValidForm();
+        form.Titles.Add(new SeriesTitleDraft
+        {
+            Title = "Not available",
+            IsRead = true,
+            ReleaseDate = releaseDate is null ? null : DateOnly.Parse(releaseDate, System.Globalization.CultureInfo.InvariantCulture)
+        });
+
+        Assert.Equal("Title 1 needs a release date on or before today to be Read.",
+            SeriesEditorPageModel.ValidateSeriesDraft(form, new DateOnly(2026, 10, 1)));
+        Assert.True(form.Titles[0].IsRead);
     }
 
     [Fact]
@@ -115,6 +175,9 @@ public class SeriesTrackerTests
 
         Assert.False(entity.FindProperty(nameof(SeriesTitle.Title))!.IsNullable);
         Assert.Equal(200, entity.FindProperty(nameof(SeriesTitle.Title))!.GetMaxLength());
+        Assert.True(entity.FindProperty(nameof(SeriesTitle.ReleaseDate))!.IsNullable);
+        Assert.False(entity.FindProperty(nameof(SeriesTitle.IsRead))!.IsNullable);
+        Assert.Null(entity.FindProperty("State"));
         Assert.Equal(DeleteBehavior.Cascade, entity.GetForeignKeys().Single().DeleteBehavior);
         Assert.True(entity.GetIndexes().Single(index => index.Properties.Select(property => property.Name)
             .SequenceEqual([nameof(SeriesTitle.SeriesItemId), nameof(SeriesTitle.Position)])).IsUnique);
@@ -128,8 +191,8 @@ public class SeriesTrackerTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync();
         var series = CreateSeries(2,
-            ("Second", SeriesTitleState.Upcoming),
-            ("First", SeriesTitleState.Read));
+            Upcoming("Second"),
+            Read("First"));
         series.Titles.ElementAt(0).Position = 1;
         series.Titles.ElementAt(1).Position = 0;
         dbContext.Series.Add(series);
@@ -137,6 +200,8 @@ public class SeriesTrackerTests
 
         var loaded = await dbContext.Series.AsNoTracking().Include(item => item.Titles).SingleAsync();
         Assert.Equal(["First", "Second"], loaded.Titles.OrderBy(title => title.Position).Select(title => title.Title));
+        Assert.True(loaded.Titles.Single(title => title.Title == "First").IsRead);
+        Assert.Equal(DateOnly.FromDateTime(DateTime.Now).AddDays(1), loaded.Titles.Single(title => title.Title == "Second").ReleaseDate);
 
         dbContext.Series.Remove(series);
         await dbContext.SaveChangesAsync();
@@ -151,8 +216,8 @@ public class SeriesTrackerTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync();
         var series = CreateSeries(2,
-            ("One", SeriesTitleState.Read),
-            ("Two", SeriesTitleState.Read));
+            Read("One"),
+            Read("Two"));
         series.Titles.ElementAt(1).Position = 0;
         dbContext.Series.Add(series);
 
@@ -177,7 +242,7 @@ public class SeriesTrackerTests
             {
                 await DatabaseInitializer.InitializeAsync(resetContext);
                 Assert.Empty(await resetContext.Series.ToListAsync());
-                resetContext.Series.Add(CreateSeries(1, ("Fresh", SeriesTitleState.Read)));
+                resetContext.Series.Add(CreateSeries(1, Read("Fresh")));
                 await resetContext.SaveChangesAsync();
             }
 
@@ -186,6 +251,36 @@ public class SeriesTrackerTests
                 await DatabaseInitializer.InitializeAsync(retainedContext);
                 Assert.Equal("Series", (await retainedContext.Series.Include(series => series.Titles).SingleAsync()).Title);
             }
+        }
+        finally
+        {
+            File.Delete(databasePath);
+        }
+    }
+
+    [Fact]
+    public async Task DatabaseInitializer_ResetsOldTitleStates()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"series-tracker-{Guid.NewGuid():N}.db");
+        try
+        {
+            await using (var connection = new SqliteConnection($"Data Source={databasePath}"))
+            {
+                await connection.OpenAsync();
+                var command = connection.CreateCommand();
+                command.CommandText = "CREATE TABLE Series (Id INTEGER PRIMARY KEY, Title TEXT NOT NULL, PlannedLength INTEGER NOT NULL, IsDropped INTEGER NOT NULL); " +
+                    "CREATE TABLE SeriesTitles (Id INTEGER PRIMARY KEY, SeriesItemId INTEGER NOT NULL, Title TEXT NOT NULL, Position INTEGER NOT NULL, State TEXT NOT NULL); " +
+                    "INSERT INTO Series VALUES (1, 'Old', 1, 0); " +
+                    "INSERT INTO SeriesTitles VALUES (1, 1, 'Old book', 0, 'Released');";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            await using var dbContext = CreateDbContext(databasePath);
+            await DatabaseInitializer.InitializeAsync(dbContext);
+            Assert.Empty(await dbContext.Series.ToListAsync());
+            Assert.NotNull(dbContext.Model.FindEntityType(typeof(SeriesTitle))!.FindProperty(nameof(SeriesTitle.ReleaseDate)));
+            dbContext.Series.Add(CreateSeries(1, Read("Fresh")));
+            await dbContext.SaveChangesAsync();
         }
         finally
         {
@@ -205,8 +300,8 @@ public class SeriesTrackerTests
         };
         page.Form.Titles =
         [
-            new SeriesTitleDraft { Title = "First", State = SeriesTitleState.Read },
-            new SeriesTitleDraft { Title = "Second", State = SeriesTitleState.Released }
+            new SeriesTitleDraft { Title = "First", ReleaseDate = DateOnly.FromDateTime(DateTime.Now), IsRead = true },
+            new SeriesTitleDraft { Title = "Second", ReleaseDate = DateOnly.FromDateTime(DateTime.Now) }
         ];
 
         var result = await page.OnPostAsync();
@@ -214,6 +309,8 @@ public class SeriesTrackerTests
         Assert.IsType<RedirectToPageResult>(result);
         var saved = await dbContext.Series.Include(series => series.Titles).SingleAsync();
         Assert.Equal(["First", "Second"], saved.Titles.OrderBy(title => title.Position).Select(title => title.Title));
+        Assert.True(saved.Titles.Single(title => title.Title == "First").IsRead);
+        Assert.Equal(DateOnly.FromDateTime(DateTime.Now), saved.Titles.Single(title => title.Title == "Second").ReleaseDate);
     }
 
     [Fact]
@@ -233,23 +330,60 @@ public class SeriesTrackerTests
     }
 
     [Fact]
+    public async Task CreatePage_PreservesInvalidReadAndReleaseDate()
+    {
+        await using var connection = await OpenMemoryConnectionAsync();
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync();
+        var page = new CreateModel(dbContext) { Form = ValidForm() };
+        page.Form.Titles.Add(new SeriesTitleDraft
+        {
+            Title = "Later",
+            ReleaseDate = DateOnly.FromDateTime(DateTime.Now).AddDays(1),
+            IsRead = true
+        });
+
+        Assert.IsType<PageResult>(await page.OnPostAsync());
+        Assert.Contains("release date", page.Message, StringComparison.Ordinal);
+        Assert.True(page.Form.Titles[0].IsRead);
+        Assert.Equal(DateOnly.FromDateTime(DateTime.Now).AddDays(1), page.Form.Titles[0].ReleaseDate);
+        Assert.Empty(await dbContext.Series.ToListAsync());
+    }
+
+    [Fact]
+    public async Task CreatePage_RejectsUnparseableReleaseDate()
+    {
+        await using var connection = await OpenMemoryConnectionAsync();
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync();
+        var page = new CreateModel(dbContext) { Form = ValidForm() };
+        page.Form.Titles.Add(new SeriesTitleDraft { Title = "Invalid date" });
+        page.ModelState.AddModelError("Form.Titles[0].ReleaseDate", "Invalid release date.");
+
+        Assert.IsType<PageResult>(await page.OnPostAsync());
+        Assert.Single(page.Form.Titles);
+        Assert.Empty(await dbContext.Series.ToListAsync());
+    }
+
+    [Fact]
     public async Task EditPage_LoadsAndReplacesOrderedTitles()
     {
         await using var connection = await OpenMemoryConnectionAsync();
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync();
-        var series = CreateSeries(3, ("Old", SeriesTitleState.Released));
+        var series = CreateSeries(3, Available("Old"));
         dbContext.Series.Add(series);
         await dbContext.SaveChangesAsync();
         var page = new EditModel(dbContext);
 
         Assert.IsType<PageResult>(await page.OnGetAsync(series.Id));
         Assert.Equal("Old", page.Form.Titles.Single().Title);
+        Assert.Equal(DateOnly.FromDateTime(DateTime.Now), page.Form.Titles.Single().ReleaseDate);
 
         page.Form.Titles =
         [
-            new SeriesTitleDraft { Title = "New first", State = SeriesTitleState.Read },
-            new SeriesTitleDraft { Title = "New second", State = SeriesTitleState.Upcoming }
+            new SeriesTitleDraft { Title = "New first", ReleaseDate = DateOnly.FromDateTime(DateTime.Now), IsRead = true },
+            new SeriesTitleDraft { Title = "New second" }
         ];
         page.Form.IsDropped = true;
         var result = await page.OnPostAsync(series.Id);
@@ -258,6 +392,8 @@ public class SeriesTrackerTests
         var updated = await dbContext.Series.AsNoTracking().Include(item => item.Titles).SingleAsync();
         Assert.True(updated.IsDropped);
         Assert.Equal(["New first", "New second"], updated.Titles.OrderBy(title => title.Position).Select(title => title.Title));
+        Assert.True(updated.Titles.Single(title => title.Title == "New first").IsRead);
+        Assert.Null(updated.Titles.Single(title => title.Title == "New second").ReleaseDate);
     }
 
     [Fact]
@@ -266,7 +402,7 @@ public class SeriesTrackerTests
         await using var connection = await OpenMemoryConnectionAsync();
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync();
-        var series = CreateSeries(1, ("One", SeriesTitleState.Read));
+        var series = CreateSeries(1, Read("One"));
         dbContext.Series.Add(series);
         await dbContext.SaveChangesAsync();
 
@@ -282,13 +418,13 @@ public class SeriesTrackerTests
         await using var connection = await OpenMemoryConnectionAsync();
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync();
-        var next = CreateSeries(3, ("Read", SeriesTitleState.Read), ("Next", SeriesTitleState.Released));
+        var next = CreateSeries(3, Read("Read"), Available("Next"));
         next.Title = "Has next";
-        var current = CreateSeries(3, ("Read", SeriesTitleState.Read), ("Soon", SeriesTitleState.Upcoming));
+        var current = CreateSeries(3, Read("Read"), Upcoming("Soon"));
         current.Title = "Up to date";
-        var complete = CreateSeries(1, ("Done", SeriesTitleState.Read));
+        var complete = CreateSeries(1, Read("Done"));
         complete.Title = "Complete";
-        var dropped = CreateSeries(2, ("Read", SeriesTitleState.Read));
+        var dropped = CreateSeries(2, Read("Read"));
         dropped.Title = "Dropped";
         dropped.IsDropped = true;
         dbContext.Series.AddRange(next, current, complete, dropped);
@@ -315,10 +451,10 @@ public class SeriesTrackerTests
     [InlineData("Dropped", 1)]
     public void Dashboard_FilterMatchesDerivedCriteria(string filter, int expectedCount)
     {
-        var toRead = CreateSeries(3, ("Read", SeriesTitleState.Read), ("Next", SeriesTitleState.Released));
-        var upToDate = CreateSeries(3, ("Read", SeriesTitleState.Read), ("Soon", SeriesTitleState.Upcoming));
-        var complete = CreateSeries(1, ("Done", SeriesTitleState.Read));
-        var dropped = CreateSeries(2, ("Read", SeriesTitleState.Read));
+        var toRead = CreateSeries(3, Read("Read"), Available("Next"));
+        var upToDate = CreateSeries(3, Read("Read"), Upcoming("Soon"));
+        var complete = CreateSeries(1, Read("Done"));
+        var dropped = CreateSeries(2, Read("Read"));
         dropped.IsDropped = true;
 
         var result = IndexModel.ApplyFilter([toRead, upToDate, complete, dropped], filter).ToList();
@@ -326,7 +462,18 @@ public class SeriesTrackerTests
         Assert.Equal(expectedCount, result.Count);
     }
 
-    private static SeriesItem CreateSeries(int plannedLength, params (string Title, SeriesTitleState State)[] titles)
+    [Fact]
+    public void Dashboard_ToReadFilterChangesOnReleaseDay()
+    {
+        var today = new DateOnly(2026, 10, 1);
+        var series = CreateSeries(2, ("Dated", today.AddDays(1), false), ("Unknown", null, false));
+
+        Assert.Empty(IndexModel.ApplyFilter([series], "To read", today));
+        Assert.Single(IndexModel.ApplyFilter([series], "To read", today.AddDays(1)));
+        Assert.Equal("Next: Dated", series.GetDashboardSecondaryText(today.AddDays(1)));
+    }
+
+    private static SeriesItem CreateSeries(int plannedLength, params (string Title, DateOnly? ReleaseDate, bool IsRead)[] titles)
     {
         return new SeriesItem
         {
@@ -336,11 +483,21 @@ public class SeriesTrackerTests
             Titles = titles.Select((title, position) => new SeriesTitle
             {
                 Title = title.Title,
-                State = title.State,
+                ReleaseDate = title.ReleaseDate,
+                IsRead = title.IsRead,
                 Position = position
             }).ToList()
         };
     }
+
+    private static (string Title, DateOnly? ReleaseDate, bool IsRead) Read(string title) =>
+        (title, DateOnly.FromDateTime(DateTime.Now), true);
+
+    private static (string Title, DateOnly? ReleaseDate, bool IsRead) Available(string title) =>
+        (title, DateOnly.FromDateTime(DateTime.Now), false);
+
+    private static (string Title, DateOnly? ReleaseDate, bool IsRead) Upcoming(string title) =>
+        (title, DateOnly.FromDateTime(DateTime.Now).AddDays(1), false);
 
     private static SeriesFormModel ValidForm()
     {

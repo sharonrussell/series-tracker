@@ -70,9 +70,16 @@
         const updateSummary = () => {
             const rows = Array.from(titleList.querySelectorAll('[data-title-row]'));
             const planned = Math.max(0, Number.parseInt(plannedLengthInput.value, 10) || 0);
-            const states = rows.map((row) => row.querySelector('input[data-field="State"]:checked')?.value);
-            const released = states.filter((state) => state === 'Released' || state === 'Read').length;
-            const read = states.filter((state) => state === 'Read').length;
+            let released = 0;
+            let read = 0;
+            rows.forEach((row) => {
+                const releaseDate = row.querySelector('[data-field="ReleaseDate"]').value;
+                const isAvailable = releaseDate && releaseDate <= seriesForm.dataset.today;
+                const readInput = row.querySelector('[data-field="IsRead"]');
+                readInput.disabled = !isAvailable && !readInput.checked;
+                released += isAvailable ? 1 : 0;
+                read += readInput.checked ? 1 : 0;
+            });
 
             setCount('[data-count-planned]', planned);
             setCount('[data-count-known]', rows.length);
@@ -85,7 +92,6 @@
 
         const reindexRows = () => {
             const rows = Array.from(titleList.querySelectorAll('[data-title-row]'));
-            const selectedStates = rows.map((row) => row.querySelector('input[data-field="State"]:checked')?.value || 'Upcoming');
             rows.forEach((row, index) => {
                 const position = index + 1;
                 row.querySelector('[data-index-token]').value = index.toString();
@@ -101,22 +107,16 @@
                 titleLabel.htmlFor = titleInput.id;
                 titleLabel.textContent = `Title ${position}`;
 
-                const legend = row.querySelector('legend');
-                legend.textContent = `Status for title ${position}`;
-                row.querySelectorAll('input[data-field="State"]').forEach((input) => {
-                    input.name = `Form.Titles[${index}].State`;
-                    input.id = `title-${index}-state-${input.value.toLowerCase()}`;
-                    input.nextElementSibling.htmlFor = input.id;
-                });
+                const dateInput = row.querySelector('[data-field="ReleaseDate"]');
+                dateInput.name = `Form.Titles[${index}].ReleaseDate`;
+                dateInput.id = `title-${index}-date`;
+                row.querySelector('.title-date-field label').htmlFor = dateInput.id;
+
+                row.querySelector('[data-field="IsRead"]').name = `Form.Titles[${index}].IsRead`;
+                row.querySelector('[data-read-fallback]').name = `Form.Titles[${index}].IsRead`;
 
                 row.querySelector('[data-move-up]').disabled = index === 0;
                 row.querySelector('[data-move-down]').disabled = index === rows.length - 1;
-            });
-
-            rows.forEach((row, index) => {
-                const selectedInput = Array.from(row.querySelectorAll('input[data-field="State"]'))
-                    .find((input) => input.value === selectedStates[index]);
-                selectedInput.checked = true;
             });
 
             updateSummary();

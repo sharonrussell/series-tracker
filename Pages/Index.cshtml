@@ -43,7 +43,7 @@
                     <tbody>
                         @foreach (var item in Model.SeriesItems)
                         {
-                            var derivedStatus = item.GetDerivedStatus();
+                            var derivedStatus = item.GetDerivedStatus(Model.Today);
                             var rowClass = $"status-row-{derivedStatus.ToString().ToLower()}";
 
                             <tr class="status-row @rowClass" tabindex="0" role="link" aria-label="Edit series @item.Title" data-edit-url="@Url.Page("/Series/Edit", new { id = item.Id })">
@@ -55,7 +55,7 @@
                                 </td>
                                 <td class="dashboard-progress">
                                     <div class="progress-value">@item.GetDashboardProgressText()</div>
-                                    <small class="progress-note">@item.GetDashboardSecondaryText()</small>
+                                    <small class="progress-note">@item.GetDashboardSecondaryText(Model.Today)</small>
                                 </td>
                             </tr>
                         }

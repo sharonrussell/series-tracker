@@ -27,9 +27,13 @@ public static class DatabaseInitializer
         var seriesColumns = hasSeries
             ? await GetColumnsAsync(connection, "Series")
             : [];
+        var titleColumns = hasSeriesTitles
+            ? await GetColumnsAsync(connection, "SeriesTitles")
+            : [];
 
         var isLegacySchema = hasSeries &&
-            (!hasSeriesTitles || !seriesColumns.Contains("PlannedLength") || !seriesColumns.Contains("IsDropped"));
+            (!hasSeriesTitles || !seriesColumns.Contains("PlannedLength") || !seriesColumns.Contains("IsDropped") ||
+             !titleColumns.Contains("ReleaseDate") || !titleColumns.Contains("IsRead") || titleColumns.Contains("State"));
 
         if (!wasOpen)
         {

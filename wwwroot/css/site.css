@@ -23,7 +23,7 @@
   --shadow: rgba(44, 57, 47, 0.1);
   --overlay: rgba(29, 37, 31, 0.42);
   --row-reading: #fff8e9;
-  --row-uptodate: #dcecff;
+  --row-uptodate: #e4eef9;
   --row-completed: #edf7ee;
   --row-dropped: #fff0f0;
   --note: #87602d;
@@ -320,7 +320,7 @@ h1 {
 
 .title-row {
   display: grid;
-  grid-template-columns: 2rem minmax(12rem, 1fr) auto auto;
+  grid-template-columns: 2rem minmax(10rem, 1fr) minmax(9rem, auto) auto auto;
   align-items: center;
   gap: 0.75rem;
   padding: 0.65rem;
@@ -339,42 +339,23 @@ h1 {
   width: 100%;
 }
 
-.state-control {
+.title-date-field {
   display: grid;
-  grid-template-columns: repeat(3, auto);
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  border: 1px solid var(--control-border);
-  border-radius: 6px;
+  gap: 0.25rem;
 }
 
-.state-control input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.state-control label {
-  padding: 0.6rem 0.7rem;
-  border-right: 1px solid var(--control-border);
-  background: var(--surface-muted);
+.title-date-field label {
   color: var(--text-muted);
-  cursor: pointer;
   font-size: 0.82rem;
 }
 
-.state-control label:last-child {
-  border-right: 0;
+.title-date-field input {
+  width: 100%;
+  min-width: 0;
 }
 
-.state-control input:checked + label {
-  background: var(--accent);
-  color: var(--accent-text);
-}
-
-.state-control input:focus-visible + label {
-  box-shadow: inset 0 0 0 3px var(--focus);
+.title-read-field {
+  white-space: nowrap;
 }
 
 .title-actions {
@@ -751,7 +732,8 @@ th {
     align-items: start;
   }
 
-  .state-control,
+  .title-date-field,
+  .title-read-field,
   .title-actions {
     grid-column: 2;
     justify-self: start;
@@ -793,16 +775,6 @@ th {
 
   .titles-heading-row {
     align-items: flex-start;
-  }
-
-  .state-control {
-    width: 100%;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .state-control label {
-    padding-inline: 0.4rem;
-    text-align: center;
   }
 
   .editor-page-footer {

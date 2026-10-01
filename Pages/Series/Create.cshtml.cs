@@ -21,7 +21,9 @@ public class CreateModel : SeriesEditorPageModel
 
     public async Task<IActionResult> OnPostAsync()
     {
-        Message = ValidateSeriesDraft(Form);
+        Message = ModelState.IsValid
+            ? ValidateSeriesDraft(Form, Today)
+            : "Check the entered values and use a valid release date.";
         if (Message is not null)
         {
             return Page();

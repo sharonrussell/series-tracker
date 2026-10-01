@@ -1,10 +1,10 @@
 namespace Series_Tracker.Models;
 
-public enum SeriesTitleState
+public enum TitleAvailability
 {
-    Upcoming = 0,
-    Released = 1,
-    Read = 2
+    Unknown,
+    Upcoming,
+    Available
 }
 
 public class SeriesTitle
@@ -19,5 +19,17 @@ public class SeriesTitle
 
     public int Position { get; set; }
 
-    public SeriesTitleState State { get; set; }
+    public DateOnly? ReleaseDate { get; set; }
+
+    public bool IsRead { get; set; }
+
+    public TitleAvailability GetAvailability(DateOnly today)
+    {
+        if (ReleaseDate is null)
+        {
+            return TitleAvailability.Unknown;
+        }
+
+        return ReleaseDate <= today ? TitleAvailability.Available : TitleAvailability.Upcoming;
+    }
 }

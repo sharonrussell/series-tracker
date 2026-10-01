@@ -2,8 +2,8 @@
 @using Series_Tracker.Models
 @{
     var knownCount = Model.Form.Titles.Count;
-    var releasedCount = Model.Form.Titles.Count(title => title.State is SeriesTitleState.Released or SeriesTitleState.Read);
-    var readCount = Model.Form.Titles.Count(title => title.State == SeriesTitleState.Read);
+    var releasedCount = Model.Form.Titles.Count(title => title.ReleaseDate <= Model.Today);
+    var readCount = Model.Form.Titles.Count(title => title.IsRead);
     var unannouncedCount = Math.Max(0, Model.Form.PlannedLength - knownCount);
 }
 
@@ -19,7 +19,7 @@
         <div class="alert alert-warning" role="alert">@Model.Message</div>
     }
 
-    <form method="post" class="series-form-page" id="series-save-form" data-series-form>
+    <form method="post" class="series-form-page" id="series-save-form" data-series-form data-today="@Model.Today.ToString("yyyy-MM-dd")">
         <input type="hidden" asp-for="Form.Id" />
 
         <section class="form-section" aria-labelledby="series-details-heading">
@@ -79,15 +79,15 @@
                             <label class="visually-hidden" for="title-@index" data-title-label>Title @(index + 1)</label>
                             <input id="title-@index" name="Form.Titles[@index].Title" value="@title.Title" placeholder="Title name" data-field="Title" />
                         </div>
-                        <fieldset class="state-control">
-                            <legend class="visually-hidden">Status for title @(index + 1)</legend>
-                            @foreach (var state in Enum.GetValues<SeriesTitleState>())
-                            {
-                                var stateId = $"title-{index}-state-{state.ToString().ToLowerInvariant()}";
-                                <input id="@stateId" type="radio" name="Form.Titles[@index].State" value="@state" checked="@(title.State == state)" data-field="State" />
-                                <label for="@stateId">@state</label>
-                            }
-                        </fieldset>
+                        <div class="title-date-field">
+                            <label for="title-@index-date">Release date</label>
+                            <input id="title-@index-date" type="date" name="Form.Titles[@index].ReleaseDate" value="@title.ReleaseDate?.ToString("yyyy-MM-dd")" data-field="ReleaseDate" />
+                        </div>
+                        <label class="checkbox-field title-read-field">
+                            <input type="checkbox" name="Form.Titles[@index].IsRead" value="true" checked="@title.IsRead" data-field="IsRead" />
+                            <input type="hidden" name="Form.Titles[@index].IsRead" value="false" data-read-fallback />
+                            <span>Read</span>
+                        </label>
                         <div class="title-actions">
                             <button type="button" class="icon-button" data-move-up aria-label="Move title up" title="Move title up" disabled="@(index == 0)">&uarr;</button>
                             <button type="button" class="icon-button" data-move-down aria-label="Move title down" title="Move title down" disabled="@(index == Model.Form.Titles.Count - 1)">&darr;</button>
@@ -110,15 +110,15 @@
                 <label class="visually-hidden" for="title-__index__" data-title-label>Title __position__</label>
                 <input id="title-__index__" name="Form.Titles[__index__].Title" placeholder="Title name" data-field="Title" />
             </div>
-            <fieldset class="state-control">
-                <legend class="visually-hidden">Status for title __position__</legend>
-                <input id="title-__index__-state-upcoming" type="radio" name="Form.Titles[__index__].State" value="Upcoming" checked data-field="State" />
-                <label for="title-__index__-state-upcoming">Upcoming</label>
-                <input id="title-__index__-state-released" type="radio" name="Form.Titles[__index__].State" value="Released" data-field="State" />
-                <label for="title-__index__-state-released">Released</label>
-                <input id="title-__index__-state-read" type="radio" name="Form.Titles[__index__].State" value="Read" data-field="State" />
-                <label for="title-__index__-state-read">Read</label>
-            </fieldset>
+            <div class="title-date-field">
+                <label for="title-__index__-date">Release date</label>
+                <input id="title-__index__-date" type="date" name="Form.Titles[__index__].ReleaseDate" data-field="ReleaseDate" />
+            </div>
+            <label class="checkbox-field title-read-field">
+                <input type="checkbox" name="Form.Titles[__index__].IsRead" value="true" data-field="IsRead" />
+                <input type="hidden" name="Form.Titles[__index__].IsRead" value="false" data-read-fallback />
+                <span>Read</span>
+            </label>
             <div class="title-actions">
                 <button type="button" class="icon-button" data-move-up aria-label="Move title up" title="Move title up">&uarr;</button>
                 <button type="button" class="icon-button" data-move-down aria-label="Move title down" title="Move title down">&darr;</button>

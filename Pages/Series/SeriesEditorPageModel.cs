@@ -11,9 +11,11 @@ public abstract class SeriesEditorPageModel : PageModel
 
     public string? Message { get; protected set; }
 
+    public DateOnly Today { get; } = DateOnly.FromDateTime(DateTime.Now);
+
     public abstract bool IsEditMode { get; }
 
-    public static string? ValidateSeriesDraft(SeriesFormModel form)
+    public static string? ValidateSeriesDraft(SeriesFormModel form, DateOnly? today = null)
     {
         if (string.IsNullOrWhiteSpace(form.Title))
         {
@@ -41,9 +43,12 @@ public abstract class SeriesEditorPageModel : PageModel
             return $"Title {blankIndex + 1} needs a name.";
         }
 
-        if (form.Titles.Any(title => !Enum.IsDefined(title.State)))
+        var currentDate = today ?? DateOnly.FromDateTime(DateTime.Now);
+        var invalidReadIndex = form.Titles.FindIndex(title => title.IsRead &&
+            (title.ReleaseDate is null || title.ReleaseDate > currentDate));
+        if (invalidReadIndex >= 0)
         {
-            return "Each title must be Upcoming, Released, or Read.";
+            return $"Title {invalidReadIndex + 1} needs a release date on or before today to be Read.";
         }
 
         return null;
@@ -56,7 +61,8 @@ public abstract class SeriesEditorPageModel : PageModel
             {
                 Title = title.Title.Trim(),
                 Position = position,
-                State = title.State
+                ReleaseDate = title.ReleaseDate,
+                IsRead = title.IsRead
             })
             .ToList();
     }
@@ -76,7 +82,8 @@ public abstract class SeriesEditorPageModel : PageModel
                 {
                     Id = title.Id,
                     Title = title.Title,
-                    State = title.State
+                    ReleaseDate = title.ReleaseDate,
+                    IsRead = title.IsRead
                 })
                 .ToList()
         };
@@ -104,5 +111,7 @@ public class SeriesTitleDraft
 
     public string Title { get; set; } = string.Empty;
 
-    public SeriesTitleState State { get; set; }
+    public DateOnly? ReleaseDate { get; set; }
+
+    public bool IsRead { get; set; }
 }

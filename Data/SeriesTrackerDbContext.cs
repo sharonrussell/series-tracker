@@ -38,9 +38,6 @@ public class SeriesTrackerDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(200);
 
-            entity.Property(e => e.State)
-                .HasConversion<string>();
-
             entity.HasIndex(e => new { e.SeriesItemId, e.Position })
                 .IsUnique();
         });

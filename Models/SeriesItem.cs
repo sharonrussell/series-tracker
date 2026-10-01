@@ -38,14 +38,15 @@ public class SeriesItem
         return Titles.Count;
     }
 
-    public int GetReleasedCount()
+    public int GetReleasedCount(DateOnly? today = null)
     {
-        return Titles.Count(title => title.State is SeriesTitleState.Released or SeriesTitleState.Read);
+        var currentDate = today ?? DateOnly.FromDateTime(DateTime.Now);
+        return Titles.Count(title => title.GetAvailability(currentDate) == TitleAvailability.Available);
     }
 
     public int GetReadCount()
     {
-        return Titles.Count(title => title.State == SeriesTitleState.Read);
+        return Titles.Count(title => title.IsRead);
     }
 
     public int GetUnannouncedCount()
@@ -53,8 +54,9 @@ public class SeriesItem
         return Math.Max(0, PlannedLength - GetKnownTitleCount());
     }
 
-    public SeriesStatus GetDerivedStatus()
+    public SeriesStatus GetDerivedStatus(DateOnly? today = null)
     {
+        var currentDate = today ?? DateOnly.FromDateTime(DateTime.Now);
         if (IsDropped)
         {
             return SeriesStatus.Dropped;
@@ -71,7 +73,7 @@ public class SeriesItem
             return SeriesStatus.Completed;
         }
 
-        if (Titles.All(title => title.State != SeriesTitleState.Released))
+        if (Titles.All(title => title.IsRead || title.GetAvailability(currentDate) != TitleAvailability.Available))
         {
             return SeriesStatus.UpToDate;
         }
@@ -79,9 +81,9 @@ public class SeriesItem
         return SeriesStatus.Reading;
     }
 
-    public SeriesCompletionState GetDerivedCompletionState()
+    public SeriesCompletionState GetDerivedCompletionState(DateOnly? today = null)
     {
-        return PlannedLength > 0 && GetReleasedCount() == PlannedLength
+        return PlannedLength > 0 && GetReleasedCount(today) == PlannedLength
             ? SeriesCompletionState.Completed
             : SeriesCompletionState.Ongoing;
     }
@@ -91,15 +93,16 @@ public class SeriesItem
         return $"{GetReadCount()} / {PlannedLength} read";
     }
 
-    public string GetDashboardSecondaryText()
+    public string GetDashboardSecondaryText(DateOnly? today = null)
     {
+        var currentDate = today ?? DateOnly.FromDateTime(DateTime.Now);
         if (IsDropped)
         {
             return "Dropped";
         }
 
         var nextReleased = Titles
-            .Where(title => title.State == SeriesTitleState.Released)
+            .Where(title => !title.IsRead && title.GetAvailability(currentDate) == TitleAvailability.Available)
             .OrderBy(title => title.Position)
             .FirstOrDefault();
         if (nextReleased is not null)
@@ -108,7 +111,7 @@ public class SeriesItem
         }
 
         var nextUpcoming = Titles
-            .Where(title => title.State == SeriesTitleState.Upcoming)
+            .Where(title => title.GetAvailability(currentDate) == TitleAvailability.Upcoming)
             .OrderBy(title => title.Position)
             .FirstOrDefault();
         if (nextUpcoming is not null)
@@ -116,7 +119,16 @@ public class SeriesItem
             return $"Upcoming: {nextUpcoming.Title}";
         }
 
-        if (GetDerivedStatus() == SeriesStatus.Completed)
+        var nextUnknown = Titles
+            .Where(title => title.GetAvailability(currentDate) == TitleAvailability.Unknown)
+            .OrderBy(title => title.Position)
+            .FirstOrDefault();
+        if (nextUnknown is not null)
+        {
+            return $"Date unknown: {nextUnknown.Title}";
+        }
+
+        if (GetDerivedStatus(currentDate) == SeriesStatus.Completed)
         {
             return "Completed";
         }
