@@ -25,6 +25,31 @@
         </div>
     </header>
 
+    @if (Model.ReadingSummary is { } summary)
+    {
+        <section class="reading-summary" aria-labelledby="reading-summary-heading">
+            <div class="reading-summary-heading">
+                <h2 id="reading-summary-heading">Up next</h2>
+            </div>
+            @if (summary.Suggestion is not { } suggestion)
+            {
+                <p>Nothing available to read right now</p>
+            }
+            else if (suggestion is { CanComplete: true, RemainingCount: 1 })
+            {
+                <p class="reading-summary-message">Wrap up @suggestion.Series.Title with <strong>@suggestion.NextTitle.Title</strong>.</p>
+            }
+            else if (suggestion.CanComplete)
+            {
+                <p class="reading-summary-message">Continue @suggestion.Series.Title with <strong>@suggestion.NextTitle.Title</strong>.</p>
+            }
+            else
+            {
+                <p class="reading-summary-message"><strong>@suggestion.NextTitle.Title</strong> from @suggestion.Series.Title.</p>
+            }
+        </section>
+    }
+
     <section class="card reading-list-card">
         @if (!Model.SeriesItems.Any())
         {

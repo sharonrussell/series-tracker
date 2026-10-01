@@ -27,9 +27,9 @@ public abstract class SeriesEditorPageModel : PageModel
             return "Author is required.";
         }
 
-        if (form.PlannedLength < 1)
+        if (form.PlannedLength < 2)
         {
-            return "Planned series length must be at least 1.";
+            return "Planned series length must be at least 2.";
         }
 
         if (form.Titles.Count > form.PlannedLength)
@@ -98,7 +98,7 @@ public class SeriesFormModel
 
     public string Author { get; set; } = string.Empty;
 
-    public int PlannedLength { get; set; } = 1;
+    public int PlannedLength { get; set; } = 2;
 
     public bool IsDropped { get; set; }
 

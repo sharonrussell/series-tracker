@@ -25,7 +25,7 @@ public class SeriesItem
 
     public string Author { get; set; } = string.Empty;
 
-    public int PlannedLength { get; set; } = 1;
+    public int PlannedLength { get; set; } = 2;
 
     public bool IsDropped { get; set; }
 

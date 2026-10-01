@@ -126,13 +126,33 @@ public class SeriesTrackerTests
         Assert.Equal("Title 1 needs a name.", SeriesEditorPageModel.ValidateSeriesDraft(blankTitle));
 
         var tooMany = ValidForm();
-        tooMany.PlannedLength = 1;
+        tooMany.PlannedLength = 2;
         tooMany.Titles =
         [
             new SeriesTitleDraft { Title = "One" },
-            new SeriesTitleDraft { Title = "Two" }
+            new SeriesTitleDraft { Title = "Two" },
+            new SeriesTitleDraft { Title = "Three" }
         ];
         Assert.Equal("Known titles cannot exceed the planned series length.", SeriesEditorPageModel.ValidateSeriesDraft(tooMany));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void ValidateSeriesDraft_RequiresAtLeastTwoPlannedTitles(int plannedLength)
+    {
+        var form = ValidForm();
+        form.PlannedLength = plannedLength;
+
+        Assert.Equal("Planned series length must be at least 2.", SeriesEditorPageModel.ValidateSeriesDraft(form));
+        Assert.Equal(plannedLength, form.PlannedLength);
+    }
+
+    [Fact]
+    public void SeriesAndCreateForm_DefaultToTwoPlannedTitles()
+    {
+        Assert.Equal(2, new SeriesItem().PlannedLength);
+        Assert.Equal(2, new SeriesFormModel().PlannedLength);
     }
 
     [Fact]
@@ -314,6 +334,26 @@ public class SeriesTrackerTests
     }
 
     [Fact]
+    public async Task CreatePage_RequiresTwoPlannedTitlesWithoutLosingTheDraft()
+    {
+        await using var connection = await OpenMemoryConnectionAsync();
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync();
+        var page = new CreateModel(dbContext) { Form = ValidForm() };
+        page.Form.PlannedLength = 1;
+        page.Form.Titles.Add(new SeriesTitleDraft { Title = "Known title" });
+
+        Assert.IsType<PageResult>(await page.OnPostAsync());
+        Assert.Equal(1, page.Form.PlannedLength);
+        Assert.Equal("Known title", Assert.Single(page.Form.Titles).Title);
+        Assert.Empty(await dbContext.Series.ToListAsync());
+
+        page.Form.PlannedLength = 2;
+        Assert.IsType<RedirectToPageResult>(await page.OnPostAsync());
+        Assert.Equal(2, (await dbContext.Series.SingleAsync()).PlannedLength);
+    }
+
+    [Fact]
     public async Task CreatePage_PreservesInvalidDraft()
     {
         await using var connection = await OpenMemoryConnectionAsync();
@@ -397,6 +437,30 @@ public class SeriesTrackerTests
     }
 
     [Fact]
+    public async Task EditPage_RequiresCorrectionOfAnExistingOneTitlePlan()
+    {
+        await using var connection = await OpenMemoryConnectionAsync();
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync();
+        var series = CreateSeries(1, Read("Legacy title"));
+        dbContext.Series.Add(series);
+        await dbContext.SaveChangesAsync();
+        var page = new EditModel(dbContext);
+
+        Assert.IsType<PageResult>(await page.OnGetAsync(series.Id));
+        Assert.Equal(1, page.Form.PlannedLength);
+        Assert.IsType<PageResult>(await page.OnPostAsync(series.Id));
+        Assert.Equal(1, (await dbContext.Series.SingleAsync()).PlannedLength);
+        Assert.Equal("Legacy title", Assert.Single(page.Form.Titles).Title);
+
+        page.Form.PlannedLength = 2;
+        Assert.IsType<RedirectToPageResult>(await page.OnPostAsync(series.Id));
+        var updated = await dbContext.Series.Include(item => item.Titles).SingleAsync();
+        Assert.Equal(2, updated.PlannedLength);
+        Assert.Equal("Legacy title", Assert.Single(updated.Titles).Title);
+    }
+
+    [Fact]
     public async Task EditPage_DeleteRemovesSeries()
     {
         await using var connection = await OpenMemoryConnectionAsync();
@@ -433,14 +497,32 @@ public class SeriesTrackerTests
         var allPage = new IndexModel(dbContext);
         await allPage.OnGetAsync();
         Assert.Equal(["Has next", "Up to date", "Complete", "Dropped"], allPage.SeriesItems.Select(series => series.Title));
+        Assert.Equal("Has next", allPage.ReadingSummary!.Suggestion!.Series.Title);
 
         var toReadPage = new IndexModel(dbContext) { StatusFilter = "To read" };
         await toReadPage.OnGetAsync();
         Assert.Equal("Has next", Assert.Single(toReadPage.SeriesItems).Title);
+        Assert.Null(toReadPage.ReadingSummary);
 
         var completedPage = new IndexModel(dbContext) { StatusFilter = "Completed" };
         await completedPage.OnGetAsync();
         Assert.Equal("Complete", Assert.Single(completedPage.SeriesItems).Title);
+        Assert.Null(completedPage.ReadingSummary);
+    }
+
+    [Fact]
+    public async Task Dashboard_EmptyAllViewHasAnEmptyReadNextSummary()
+    {
+        await using var connection = await OpenMemoryConnectionAsync();
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync();
+        var page = new IndexModel(dbContext);
+
+        await page.OnGetAsync();
+
+        Assert.NotNull(page.ReadingSummary);
+        Assert.Null(page.ReadingSummary.Suggestion);
+        Assert.Empty(page.SeriesItems);
     }
 
     [Theory]
@@ -471,6 +553,124 @@ public class SeriesTrackerTests
         Assert.Empty(IndexModel.ApplyFilter([series], "To read", today));
         Assert.Single(IndexModel.ApplyFilter([series], "To read", today.AddDays(1)));
         Assert.Equal("Next: Dated", series.GetDashboardSecondaryText(today.AddDays(1)));
+    }
+
+    [Fact]
+    public void ReadNextSummary_RequiresEveryPlannedUnreadBookToBeAvailableToFinish()
+    {
+        var today = new DateOnly(2026, 10, 1);
+        var finishable = CreateSeries(2, ("Read", today, true), ("Final book", today, false));
+        var unannounced = CreateSeries(3, ("Read", today, true), ("Ready", today, false));
+
+        var summary = IndexModel.BuildReadNextSummary([unannounced, finishable], today);
+
+        var suggestion = Assert.IsType<ReadNextSuggestion>(summary.Suggestion);
+        Assert.True(suggestion.CanComplete);
+        Assert.Same(finishable, suggestion.Series);
+        Assert.Equal("Final book", suggestion.NextTitle.Title);
+        Assert.Equal(1, suggestion.RemainingCount);
+    }
+
+    [Fact]
+    public void ReadNextSummary_ExcludesUnavailableAndInactiveTitlesFromCompletion()
+    {
+        var today = new DateOnly(2026, 10, 1);
+        var finishable = CreateSeries(3, ("Read", today, true), ("Second", today, false), ("Third", today, false));
+        var future = CreateSeries(3, ("Read", today, true), ("Ready", today, false), ("Later", today.AddDays(1), false));
+        var unknown = CreateSeries(3, ("Read", today, true), ("Ready", today, false), ("Undated", null, false));
+        var completed = CreateSeries(1, ("Done", today, true));
+        var dropped = CreateSeries(1, ("Dropped book", today, false));
+        dropped.IsDropped = true;
+
+        var summary = IndexModel.BuildReadNextSummary([finishable, future, unknown, completed, dropped], today);
+
+        var suggestion = Assert.IsType<ReadNextSuggestion>(summary.Suggestion);
+        Assert.True(suggestion.CanComplete);
+        Assert.Same(finishable, suggestion.Series);
+        Assert.Equal("Second", suggestion.NextTitle.Title);
+        Assert.Equal(2, suggestion.RemainingCount);
+    }
+
+    [Fact]
+    public void ReadNextSummary_OnlySuggestsAvailableUnreadTitles()
+    {
+        var today = new DateOnly(2026, 10, 1);
+        var future = CreateSeries(1, ("Later", today.AddDays(1), false));
+        var unknown = CreateSeries(1, ("Undated", null, false));
+        var completed = CreateSeries(1, ("Done", today, true));
+        var dropped = CreateSeries(1, ("Dropped book", today, false));
+        dropped.IsDropped = true;
+
+        var summary = IndexModel.BuildReadNextSummary([future, unknown, completed, dropped], today);
+
+        Assert.Null(summary.Suggestion);
+    }
+
+    [Fact]
+    public void ReadNextSummary_RanksAndSelectsOneFinishableSuggestion()
+    {
+        var today = new DateOnly(2026, 10, 1);
+        var latest = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc);
+        var mostProgressed = CreateSeries(4, ("One", today, true), ("Two", today, true), ("Three", today, true), ("Finish", today, false));
+        var fewerRemaining = CreateSeries(2, ("Read", today, true), ("Finish", today, false));
+        var recentlyUpdated = CreateSeries(2, ("Read", today, true), ("Finish", today, false));
+        var older = CreateSeries(2, ("Read", today, true), ("Finish", today, false));
+        var lessProgressed = CreateSeries(1, ("Begin", today, false));
+        mostProgressed.Id = 5;
+        recentlyUpdated.Id = 4;
+        fewerRemaining.Id = 2;
+        older.Id = 1;
+        recentlyUpdated.UpdatedAt = latest;
+        fewerRemaining.UpdatedAt = latest.AddDays(-1);
+        older.UpdatedAt = latest.AddDays(-1);
+
+        var summary = IndexModel.BuildReadNextSummary([lessProgressed, fewerRemaining, older, recentlyUpdated, mostProgressed], today);
+
+        Assert.Same(mostProgressed, summary.Suggestion!.Series);
+        Assert.True(summary.Suggestion.CanComplete);
+    }
+
+    [Fact]
+    public void ReadNextSummary_TiesPreferFewerRemainingBooksBeforeRecency()
+    {
+        var today = new DateOnly(2026, 10, 1);
+        var shorter = CreateSeries(2, ("Read", today, true), ("Finish", today, false));
+        var longer = CreateSeries(4, ("One", today, true), ("Two", today, true),
+            ("Three", today, false), ("Four", today, false));
+        shorter.UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        longer.UpdatedAt = shorter.UpdatedAt.AddDays(1);
+
+        var summary = IndexModel.BuildReadNextSummary([longer, shorter], today);
+
+        Assert.Same(shorter, summary.Suggestion!.Series);
+    }
+
+    [Fact]
+    public void ReadNextSummary_FallsBackToMostProgressedSeriesAndEarliestAvailableTitle()
+    {
+        var today = new DateOnly(2026, 10, 1);
+        var lessProgressed = CreateSeries(4, ("Read", today, true), ("Ready", today, false));
+        var mostProgressed = CreateSeries(5, ("Read first", today, true), ("Read second", today, true),
+            ("Earliest ready", today, false), ("Later ready", today, false));
+
+        var summary = IndexModel.BuildReadNextSummary([lessProgressed, mostProgressed], today);
+
+        var suggestion = Assert.IsType<ReadNextSuggestion>(summary.Suggestion);
+        Assert.False(suggestion.CanComplete);
+        Assert.Same(mostProgressed, suggestion.Series);
+        Assert.Equal("Earliest ready", suggestion.NextTitle.Title);
+    }
+
+    [Fact]
+    public void ReadNextSummary_RecalculatesWhenTheReleaseDateArrives()
+    {
+        var today = new DateOnly(2026, 10, 1);
+        var series = CreateSeries(2, ("Read", today, true), ("Tomorrow", today.AddDays(1), false));
+
+        Assert.Null(IndexModel.BuildReadNextSummary([series], today).Suggestion);
+        var tomorrow = IndexModel.BuildReadNextSummary([series], today.AddDays(1));
+        Assert.Equal("Tomorrow", tomorrow.Suggestion!.NextTitle.Title);
+        Assert.True(tomorrow.Suggestion.CanComplete);
     }
 
     private static SeriesItem CreateSeries(int plannedLength, params (string Title, DateOnly? ReleaseDate, bool IsRead)[] titles)

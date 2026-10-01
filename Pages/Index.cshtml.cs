@@ -20,6 +20,8 @@ public class IndexModel : PageModel
 
     public IList<SeriesItem> SeriesItems { get; private set; } = new List<SeriesItem>();
 
+    public ReadNextSummary? ReadingSummary { get; private set; }
+
     public DateOnly Today { get; private set; } = DateOnly.FromDateTime(DateTime.Now);
 
     public async Task OnGetAsync()
@@ -36,6 +38,10 @@ public class IndexModel : PageModel
         {
             series.Titles = series.Titles.OrderBy(title => title.Position).ToList();
         }
+
+        ReadingSummary = StatusFilter.Equals("All", StringComparison.OrdinalIgnoreCase)
+            ? BuildReadNextSummary(seriesItems, Today)
+            : null;
 
         SeriesItems = ApplyFilter(seriesItems, StatusFilter, Today)
             .OrderBy(series => GetAllListPriority(series, Today))
@@ -54,6 +60,34 @@ public class IndexModel : PageModel
             "dropped" => seriesItems.Where(series => series.IsDropped),
             _ => seriesItems
         };
+    }
+
+    public static ReadNextSummary BuildReadNextSummary(IEnumerable<SeriesItem> seriesItems, DateOnly today)
+    {
+        var eligible = seriesItems
+            .Where(series => series.PlannedLength > 0 && !series.IsDropped && series.GetDerivedStatus(today) != SeriesStatus.Completed)
+            .Select(series =>
+            {
+                var nextTitle = series.Titles
+                    .Where(title => !title.IsRead && title.GetAvailability(today) == TitleAvailability.Available)
+                    .OrderBy(title => title.Position)
+                    .FirstOrDefault();
+                return nextTitle is null ? null : new ReadNextSuggestion(
+                    series,
+                    nextTitle,
+                    series.PlannedLength - series.GetReadCount(),
+                    series.GetKnownTitleCount() == series.PlannedLength &&
+                    series.Titles.All(title => title.IsRead || title.GetAvailability(today) == TitleAvailability.Available));
+            })
+            .OfType<ReadNextSuggestion>()
+            .ToList();
+        var ranked = eligible
+            .OrderByDescending(suggestion => (decimal)suggestion.Series.GetReadCount() / suggestion.Series.PlannedLength)
+            .ThenBy(suggestion => suggestion.RemainingCount)
+            .ThenByDescending(suggestion => suggestion.Series.UpdatedAt)
+            .ThenBy(suggestion => suggestion.Series.Id)
+            .ToList();
+        return new ReadNextSummary(ranked.FirstOrDefault(suggestion => suggestion.CanComplete) ?? ranked.FirstOrDefault());
     }
 
     private static int GetAllListPriority(SeriesItem series, DateOnly today)
@@ -76,3 +110,7 @@ public class IndexModel : PageModel
         };
     }
 }
+
+public sealed record ReadNextSuggestion(SeriesItem Series, SeriesTitle NextTitle, int RemainingCount, bool CanComplete);
+
+public sealed record ReadNextSummary(ReadNextSuggestion? Suggestion);
