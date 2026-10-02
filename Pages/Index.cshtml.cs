@@ -83,6 +83,7 @@ public class IndexModel : PageModel
             .ToList();
         var ranked = eligible
             .OrderByDescending(suggestion => (decimal)suggestion.Series.GetReadCount() / suggestion.Series.PlannedLength)
+            .ThenBy(suggestion => suggestion.NextTitle.ReleaseDate)
             .ThenBy(suggestion => suggestion.RemainingCount)
             .ThenByDescending(suggestion => suggestion.Series.UpdatedAt)
             .ThenBy(suggestion => suggestion.Series.Id)

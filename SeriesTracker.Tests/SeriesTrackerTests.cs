@@ -631,6 +631,70 @@ public class SeriesTrackerTests
     }
 
     [Fact]
+    public void ReadNextSummary_TiesPreferOlderReleaseOverFewerBooksAndRecentUpdate()
+    {
+        var today = new DateOnly(2026, 10, 1);
+        var olderRelease = CreateSeries(4, ("One", today, true), ("Two", today, true),
+            ("Read next", today.AddYears(-2), false), ("Finish", today, false));
+        var newerRelease = CreateSeries(2, ("Read", today, true), ("Finish", today.AddDays(-1), false));
+        olderRelease.UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        newerRelease.UpdatedAt = olderRelease.UpdatedAt.AddYears(1);
+
+        var summary = IndexModel.BuildReadNextSummary([newerRelease, olderRelease], today);
+
+        Assert.Same(olderRelease, summary.Suggestion!.Series);
+        Assert.Equal("Read next", summary.Suggestion.NextTitle.Title);
+    }
+
+    [Fact]
+    public void ReadNextSummary_FinishabilityAndProgressTakePriorityOverReleaseAge()
+    {
+        var today = new DateOnly(2026, 10, 1);
+        var finishable = CreateSeries(2, ("Read", today, true), ("Finish", today, false));
+        var olderNonfinishable = CreateSeries(4, ("One", today, true), ("Two", today, true),
+            ("Overdue", today.AddYears(-2), false), ("Upcoming", today.AddDays(1), false));
+
+        Assert.Same(finishable, IndexModel.BuildReadNextSummary([olderNonfinishable, finishable], today).Suggestion!.Series);
+
+        var furtherAlong = CreateSeries(3, ("One", today, true), ("Two", today, true), ("Finish", today, false));
+        finishable.Titles.Single(title => title.Title == "Finish").ReleaseDate = today.AddYears(-3);
+
+        Assert.Same(furtherAlong, IndexModel.BuildReadNextSummary([finishable, furtherAlong], today).Suggestion!.Series);
+    }
+
+    [Fact]
+    public void ReadNextSummary_EqualDatesRetainUpdateTimeAndStableIdFallbacks()
+    {
+        var today = new DateOnly(2026, 10, 1);
+        var earlierId = CreateSeries(2, ("Read", today, true), ("Next", today, false));
+        var recentlyUpdated = CreateSeries(2, ("Read", today, true), ("Next", today, false));
+        earlierId.Id = 1;
+        recentlyUpdated.Id = 2;
+        earlierId.UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        recentlyUpdated.UpdatedAt = earlierId.UpdatedAt.AddDays(1);
+
+        Assert.Same(recentlyUpdated, IndexModel.BuildReadNextSummary([earlierId, recentlyUpdated], today).Suggestion!.Series);
+
+        earlierId.UpdatedAt = recentlyUpdated.UpdatedAt;
+        Assert.Same(earlierId, IndexModel.BuildReadNextSummary([recentlyUpdated, earlierId], today).Suggestion!.Series);
+    }
+
+    [Fact]
+    public void ReadNextSummary_ComparesSeriesOrderNextDateAndRespondsToDateChanges()
+    {
+        var today = new DateOnly(2026, 10, 1);
+        var laterNext = CreateSeries(3, ("Read", today, true), ("Next", today.AddDays(-2), false),
+            ("Older but later in series", today.AddYears(-3), false));
+        var olderNext = CreateSeries(3, ("Read", today, true), ("Next", today.AddDays(-3), false),
+            ("Last", today, false));
+
+        Assert.Same(olderNext, IndexModel.BuildReadNextSummary([laterNext, olderNext], today).Suggestion!.Series);
+
+        laterNext.Titles.Single(title => title.Title == "Next").ReleaseDate = today.AddDays(-4);
+        Assert.Same(laterNext, IndexModel.BuildReadNextSummary([olderNext, laterNext], today).Suggestion!.Series);
+    }
+
+    [Fact]
     public void ReadNextSummary_TiesPreferFewerRemainingBooksBeforeRecency()
     {
         var today = new DateOnly(2026, 10, 1);

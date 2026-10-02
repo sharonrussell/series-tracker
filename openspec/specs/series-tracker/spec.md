@@ -572,7 +572,11 @@ The system SHALL show a concise informational summary headed `Up next` above the
 
 #### Scenario: Break equal progress ties
 - **WHEN** eligible series share the highest read-to-planned proportion
-- **THEN** the summary prefers the series with fewer unread planned titles, then the most recently updated series, then a stable series identifier order
+- **THEN** the summary prefers the series whose next available unread title has the older release date, then fewer unread planned titles, then the most recently updated series, then a stable series identifier order
+
+#### Scenario: Preserve finishable priority over older releases
+- **WHEN** a finishable series and a nonfinishable series both have available unread titles and the nonfinishable series' next title was released earlier
+- **THEN** the summary still recommends a finishable series
 
 #### Scenario: Show nothing available now
 - **WHEN** no non-dropped, incomplete series has an available unread title
