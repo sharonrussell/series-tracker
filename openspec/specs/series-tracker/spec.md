@@ -173,6 +173,10 @@ The system SHALL present each tracked series as one compact clickable dashboard 
 - **WHEN** a series is Dropped
 - **THEN** its secondary line shows `Dropped` and the row uses the dropped color
 
+#### Scenario: Prefer started active series within a priority group
+- **WHEN** a non-dropped started series and a non-dropped Not started series share an existing dashboard priority group in the All or To read view
+- **THEN** the started series, which has at least one Read title, appears first without changing priority-group order, and most-recently-updated order remains the fallback within each started/not-started class; Dropped series remain in their existing lowest-priority group and ordering
+
 ### Requirement: User can see the next title in a series
 The system SHALL derive one concise next-title message from ordered known titles' availability and read values and display it as the dashboard row's secondary status line.
 

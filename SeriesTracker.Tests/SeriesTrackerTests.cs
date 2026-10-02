@@ -511,6 +511,50 @@ public class SeriesTrackerTests
     }
 
     [Fact]
+    public async Task Dashboard_PrioritizesStartedSeriesWithinPriorityAndKeepsExistingOrdering()
+    {
+        await using var connection = await OpenMemoryConnectionAsync();
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync();
+        var startedOlder = CreateSeries(3, Read("Read"), Available("Next"));
+        startedOlder.Title = "Started older";
+        startedOlder.UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var startedNewer = CreateSeries(3, Read("Read"), Available("Next"));
+        startedNewer.Title = "Started newer";
+        startedNewer.UpdatedAt = new DateTime(2025, 2, 1, 0, 0, 0, DateTimeKind.Utc);
+        var notStartedOlder = CreateSeries(3, Available("Next"), Upcoming("Soon"));
+        notStartedOlder.Title = "Not started older";
+        notStartedOlder.UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var notStartedNewer = CreateSeries(3, Available("Next"), Upcoming("Soon"));
+        notStartedNewer.Title = "Not started newer";
+        notStartedNewer.UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var upToDate = CreateSeries(3, Read("Read"), Upcoming("Soon"));
+        upToDate.Title = "Up to date";
+        var droppedNotStarted = CreateSeries(2, Available("Next"));
+        droppedNotStarted.Title = "Dropped not started";
+        droppedNotStarted.IsDropped = true;
+        droppedNotStarted.UpdatedAt = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
+        var droppedStarted = CreateSeries(2, Read("Read"));
+        droppedStarted.Title = "Dropped started";
+        droppedStarted.IsDropped = true;
+        droppedStarted.UpdatedAt = new DateTime(2025, 3, 1, 0, 0, 0, DateTimeKind.Utc);
+        dbContext.Series.AddRange(startedOlder, startedNewer, notStartedOlder, notStartedNewer, upToDate, droppedNotStarted, droppedStarted);
+        await dbContext.SaveChangesAsync();
+
+        var allPage = new IndexModel(dbContext);
+        await allPage.OnGetAsync();
+        Assert.Equal(
+            ["Started newer", "Started older", "Not started newer", "Not started older", "Up to date", "Dropped not started", "Dropped started"],
+            allPage.SeriesItems.Select(series => series.Title));
+
+        var toReadPage = new IndexModel(dbContext) { StatusFilter = "To read" };
+        await toReadPage.OnGetAsync();
+        Assert.Equal(
+            ["Started newer", "Started older", "Not started newer", "Not started older"],
+            toReadPage.SeriesItems.Select(series => series.Title));
+    }
+
+    [Fact]
     public async Task Dashboard_EmptyAllViewHasAnEmptyReadNextSummary()
     {
         await using var connection = await OpenMemoryConnectionAsync();

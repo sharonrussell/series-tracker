@@ -45,6 +45,7 @@ public class IndexModel : PageModel
 
         SeriesItems = ApplyFilter(seriesItems, StatusFilter, Today)
             .OrderBy(series => GetAllListPriority(series, Today))
+            .ThenByDescending(series => !series.IsDropped && series.GetReadCount() > 0)
             .ThenByDescending(series => series.UpdatedAt)
             .ToList();
     }
