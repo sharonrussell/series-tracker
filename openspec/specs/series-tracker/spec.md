@@ -241,7 +241,19 @@ The system SHALL present the reading list, shell, controls, status rows, and edi
 
 #### Scenario: Use available list viewport space
 - **WHEN** a user views the dashboard on a viewport with space below the list
-- **THEN** the list region uses the available viewport space efficiently without an unnecessarily large bottom buffer
+- **THEN** the list region grows to use available vertical space without an unnecessarily large bottom gap, while longer lists scroll within the list region
+
+#### Scenario: Keep the footer at the viewport bottom
+- **WHEN** dashboard content is shorter than the viewport
+- **THEN** the footer sits at the bottom edge of the viewport without covering page content, and when content exceeds the viewport the footer follows the content
+
+#### Scenario: Align dashboard content edges
+- **WHEN** a user views the dashboard on desktop or mobile
+- **THEN** the page heading, summary, and reading-list container share consistent left and right content edges
+
+#### Scenario: Align the theme toggle with the Add control
+- **WHEN** a user views the dashboard on desktop or mobile
+- **THEN** the theme toggle remains in the navbar on its own row and its right edge aligns with the dashboard Add control
 
 #### Scenario: Preserve light and dark comfort
 - **WHEN** a user views either light mode or dark mode

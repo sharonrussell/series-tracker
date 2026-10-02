@@ -15,11 +15,13 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body>
+<body class="app-shell">
     <header>
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container">
-                <a class="navbar-brand" asp-area="" asp-page="/Index">Series Tracker</a>
+            <div class="container app-navbar-container">
+                <div class="navbar-brand-alignment">
+                    <a class="navbar-brand" asp-area="" asp-page="/Index">Series Tracker</a>
+                </div>
                 <div class="theme-nav-item">
                     <button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch to dark theme" aria-pressed="false">
                         <span data-theme-icon aria-hidden="true">&#9790;</span>
@@ -29,14 +31,14 @@
             </div>
         </nav>
     </header>
-    <div class="container">
-        <main role="main" class="pb-3">
+    <div class="app-main-container">
+        <main role="main" class="app-container app-main">
             @RenderBody()
         </main>
     </div>
 
     <footer class="border-top footer text-muted">
-        <div class="container">
+        <div class="app-container">
             &copy; 2026 - Series Tracker
         </div>
     </footer>
