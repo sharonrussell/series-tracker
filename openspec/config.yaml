@@ -7,28 +7,24 @@ context: |
   UI: Razor pages under Pages/, with the dashboard in Pages/Index.cshtml, custom styles in wwwroot/css/site.css, and theme/drawer behavior in wwwroot/js/site.js. Keep the existing clean, responsive reading-list design and light/dark theme support.
   Domain: SeriesItem tracks title, author, total series length, released count, and books read. Reading status is derived from the numeric progress data; Dropped is the only manual override. Do not introduce separate manual publication or completion state controls.
   Persistence: The application uses EnsureCreated plus compatibility updates in Program.cs; do not add migrations unless explicitly requested.
-  Testing: xUnit tests live in SeriesTracker.Tests. Run `dotnet build --nologo` and `dotnet test SeriesTracker.Tests/SeriesTracker.Tests.csproj --nologo` for code changes.
+  Testing: Every implemented change, including specification-only and development-guidance changes, must pass all Application Quality checks locally before completion or archive. From the repository root, run these exact commands in order: `dotnet restore SeriesTracker.Tests/SeriesTracker.Tests.csproj`, `dotnet build SeriesTracker.Tests/SeriesTracker.Tests.csproj --configuration Release --no-restore --nologo`, `dotnet test SeriesTracker.Tests/SeriesTracker.Tests.csproj --configuration Release --no-build --nologo`, `dotnet format --verify-no-changes --no-restore`, and `openspec validate --specs --strict`. Then run `openspec validate <change-name> --strict` for the active change. Use .NET SDK 10 and an installed OpenSpec CLI; do not substitute Debug builds, filtered tests, or weaker formatting checks.
   UI changes: Refresh the local app and smoke test desktop and mobile layouts, theme toggling, editor behavior, list scrolling, and browser-console cleanliness.
   Specs: Use the existing `series-tracker` capability. Validate changes with `openspec validate <change> --strict`; validate main specs with `openspec validate --specs --strict`.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+rules:
+  tasks:
+    - Include final verification tasks that run all five Application Quality commands from the Testing context in CI order with identical targets and options, plus strict active-change validation. Require them for every implemented change, including specification-only changes, in addition to change-specific verification.
+    - Require a verification summary in tasks.md recording executed commands, outcomes, tested implementation state, and relevant tool versions. Failed, skipped, unavailable, or unrecorded checks block completion and archive; final verification remains unchecked until all required checks pass.
+    - Require the complete verification sequence to be rerun after later implementation, workflow, or specification edits; evidence-only task annotations do not require another run. If CI checks change, update the README checklist and project completion guidance in the same change.
 
-# Per-operation guidance (optional)
-# Add advisory guidance for how apply and archive work should be conducted.
-# This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+operations:
+  apply:
+    guidance:
+      - Before declaring implementation complete, execute every Application Quality check locally using the exact sequence in the Testing context and README, followed by strict active-change validation. Apply this gate to specification-only changes and preserve existing change-specific checks.
+      - Record local results in the change's tasks.md verification summary and leave final verification unchecked while any check fails, is skipped, is unavailable, or has no recorded result. Rerun the complete sequence after implementation, workflow, or specification edits.
+      - Planning readiness is not implementation completion, and local success is not GitHub success. Inspect the next Application Quality run after publication separately; never weaken CI checks to pass the gate.
+  archive:
+    guidance:
+      - Review the change's recorded local verification before archive. Do not declare the change complete or archive it if any Application Quality check or strict active-change validation failed, was skipped, was unavailable, or lacks a passing local result, including for specification-only changes.
+      - If implementation, workflow, or specifications changed since verification, rerun the complete CI-equivalent sequence from the Testing context and README plus strict active-change validation before archive. Update the local checklist and completion guidance whenever CI checks change.
+      - Validate resulting main specifications after synchronization before reporting archive completion. Artifact existence alone is not proof of local quality; this required project process does not provide an automatic CLI archive lock.

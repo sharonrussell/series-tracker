@@ -5,6 +5,7 @@ A personal reading-list tracker for book series. Track each series, its author, 
 ## Prerequisites
 
 - .NET SDK 10
+- Node.js 22 and the OpenSpec CLI for quality checks (`npm install -g @fission-ai/openspec`)
 
 ## Run Locally
 
@@ -22,14 +23,27 @@ dotnet test SeriesTracker.Tests/SeriesTracker.Tests.csproj --nologo
 
 ## Quality Checks
 
-Run the same checks enforced by the application quality workflow before opening a pull request:
+Every implemented OpenSpec change, including specification-only and development-guidance changes, must pass all Application Quality checks locally before it is declared complete or archived, as well as before opening a pull request. From the repository root, run the exact CI commands in this order:
 
 ```bash
+dotnet restore SeriesTracker.Tests/SeriesTracker.Tests.csproj
+dotnet build SeriesTracker.Tests/SeriesTracker.Tests.csproj --configuration Release --no-restore --nologo
+dotnet test SeriesTracker.Tests/SeriesTracker.Tests.csproj --configuration Release --no-build --nologo
 dotnet format --verify-no-changes --no-restore
-dotnet build --nologo
-dotnet test SeriesTracker.Tests/SeriesTracker.Tests.csproj --nologo
 openspec validate --specs --strict
 ```
+
+Then validate the active change, replacing `<change-name>` with its name:
+
+```bash
+openspec validate <change-name> --strict
+```
+
+Record the executed commands, outcomes, tested implementation state, and relevant tool versions in the change's `tasks.md` verification summary. Failed, skipped, unavailable, or unrecorded checks block completion and archive; keep final verification unchecked until all required checks pass. Do not disable formatting or substitute a Debug build or filtered tests to obtain a passing result.
+
+Rerun the complete sequence after subsequent implementation, workflow, or specification edits; evidence-only task annotations do not require another run. When CI checks change, update this local checklist and OpenSpec completion guidance in the same change. These checks supplement change-specific verification, including UI smoke tests.
+
+Planning artifacts being ready does not mean implementation is complete. Before archive, review the local evidence again and rerun checks if the tested state changed; validate resulting main specs after specification synchronization. This is a required project process, not an automatic OpenSpec CLI archive lock. Local success does not establish GitHub success: inspect the next Application Quality run after publication separately.
 
 ## How It Works
 
